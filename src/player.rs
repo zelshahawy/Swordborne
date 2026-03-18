@@ -2,10 +2,14 @@ use bevy::prelude::*;
 
 pub struct PlayerPlugin;
 
+pub const GROUND_Y: f32 = -250.0;
+
 const PLAYER_SPEED: f32 = 300.0;
 const JUMP_VELOCITY: f32 = 500.0;
 const GRAVITY: f32 = -1200.0;
-const GROUND_Y: f32 = -250.0;
+
+const PLAYER_WITH_SWORD_COLOR: Color = Color::srgb(0.3, 0.7, 0.9);
+const PLAYER_SWORDLESS_COLOR: Color = Color::srgb(0.6, 0.4, 0.7);
 
 #[derive(Component)]
 pub struct Player;
@@ -22,21 +26,33 @@ pub struct Facing(pub f32);
 #[derive(Component, Debug)]
 pub struct OnGround(pub bool);
 
+#[derive(Component, Debug)]
+pub struct HasSword(pub bool);
+
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
-            .add_systems(Update, (player_input, apply_gravity, move_player).chain());
+        app.add_systems(Startup, spawn_player).add_systems(
+            Update,
+            (
+                player_input,
+                apply_gravity,
+                move_player,
+                update_player_visuals,
+            )
+                .chain(),
+        );
     }
 }
 
 fn spawn_player(mut commands: Commands) {
     commands.spawn((
-        Sprite::from_color(Color::srgb(0.3, 0.7, 0.9), Vec2::new(32.0, 48.0)),
+        Sprite::from_color(PLAYER_WITH_SWORD_COLOR, Vec2::new(32.0, 48.0)),
         Transform::from_xyz(0.0, GROUND_Y, 1.0),
         Player,
         Velocity::default(),
         Facing(1.0),
         OnGround(true),
+        HasSword(true),
     ));
 
     commands.spawn((
@@ -104,4 +120,16 @@ fn move_player(
     } else {
         on_ground.0 = false;
     }
+}
+
+fn update_player_visuals(mut query: Query<(&HasSword, &mut Sprite), With<Player>>) {
+    let Ok((has_sword, mut sprite)) = query.single_mut() else {
+        return;
+    };
+
+    sprite.color = if has_sword.0 {
+        PLAYER_WITH_SWORD_COLOR
+    } else {
+        PLAYER_SWORDLESS_COLOR
+    };
 }
