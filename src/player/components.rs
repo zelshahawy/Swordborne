@@ -60,6 +60,7 @@ pub struct ActionTimer(pub Timer);
 pub struct CurrentAnimation {
     pub state: PlayerAnimState,
     pub frame_count: usize,
+    pub with_sword: bool,
 }
 
 #[derive(Resource)]

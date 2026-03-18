@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
 use crate::player::components::{
     AnimationTimer, CurrentAnimation, Facing, HasSword, IDLE_FPS, JUMP_FPS, OnGround, PLAYER_SCALE,
@@ -38,7 +39,7 @@ pub fn select_animation(anims: Res<PlayerAnimationHandles>, mut query: PlayerAni
         PlayerAnimState::Idle
     };
 
-    if next_state == current.state {
+    if next_state == current.state && has_sword.0 == current.with_sword {
         return;
     }
 
@@ -98,6 +99,7 @@ pub fn select_animation(anims: Res<PlayerAnimationHandles>, mut query: PlayerAni
     timer.0 = Timer::from_seconds(1.0 / fps, TimerMode::Repeating);
     current.state = next_state;
     current.frame_count = frame_count;
+    current.with_sword = has_sword.0;
 }
 
 pub fn animate_player(
@@ -127,13 +129,13 @@ pub fn animate_player(
     if current.state == PlayerAnimState::Slash {
         timer.0.tick(time.delta());
 
-        if let Some(atlas) = &mut sprite.texture_atlas {
-            if timer.0.just_finished() {
-                if atlas.index < current.frame_count - 1 {
-                    atlas.index += 1;
-                } else if *action_state != PlayerActionState::Slash {
-                    atlas.index = 0;
-                }
+        if let Some(atlas) = &mut sprite.texture_atlas
+            && timer.0.just_finished()
+        {
+            if atlas.index < current.frame_count - 1 {
+                atlas.index += 1;
+            } else if *action_state != PlayerActionState::Slash {
+                atlas.index = 0;
             }
         }
 
@@ -149,11 +151,13 @@ pub fn animate_player(
     }
 }
 
-pub fn update_player_flip(mut query: Query<(&Facing, &mut Transform), With<Player>>) {
-    let Ok((facing, mut transform)) = query.single_mut() else {
+pub fn update_player_flip(mut query: Query<(&Facing, &mut Transform, &mut Anchor), With<Player>>) {
+    let Ok((facing, mut transform, mut anchor)) = query.single_mut() else {
         return;
     };
 
     transform.scale.x = PLAYER_SCALE * facing.0;
     transform.scale.y = PLAYER_SCALE;
+
+    *anchor = Anchor::BOTTOM_CENTER;
 }

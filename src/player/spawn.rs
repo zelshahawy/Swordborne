@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
 use crate::player::components::{
     ActionTimer, AnimationTimer, CurrentAnimation, FRAME_SIZE, Facing, GROUND_Y, HasSword,
@@ -67,14 +68,17 @@ pub fn load_player_animations(
 }
 
 pub fn spawn_player(mut commands: Commands, anims: Res<PlayerAnimationHandles>) {
+    let sprite = Sprite::from_atlas_image(
+        anims.idle_no_sword_texture.clone(),
+        TextureAtlas {
+            layout: anims.idle_no_sword_layout.clone(),
+            index: 0,
+        },
+    );
+
     commands.spawn((
-        Sprite::from_atlas_image(
-            anims.idle_no_sword_texture.clone(),
-            TextureAtlas {
-                layout: anims.idle_no_sword_layout.clone(),
-                index: 0,
-            },
-        ),
+        sprite,
+        Anchor::BOTTOM_CENTER,
         Transform::from_xyz(-450.0, GROUND_Y, 1.0).with_scale(Vec3::splat(PLAYER_SCALE)),
         Player,
         Velocity::default(),
@@ -87,11 +91,12 @@ pub fn spawn_player(mut commands: Commands, anims: Res<PlayerAnimationHandles>) 
         CurrentAnimation {
             state: PlayerAnimState::Idle,
             frame_count: 4,
+            with_sword: false,
         },
     ));
 
     commands.spawn((
         Sprite::from_color(Color::srgb(0.2, 0.2, 0.2), Vec2::new(1200.0, 40.0)),
-        Transform::from_xyz(0.0, GROUND_Y - 40.0, 0.0),
+        Transform::from_xyz(-40.0, GROUND_Y - 40.0, 0.0),
     ));
 }
