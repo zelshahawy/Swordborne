@@ -8,6 +8,7 @@ use bevy::{
     prelude::*,
 };
 
+use crate::fonts::GameFonts;
 use crate::state::{CampaignState, GameState, PlayerProfile};
 
 pub struct MenuPlugin;
@@ -26,7 +27,6 @@ struct MenuViewState {
 #[derive(Resource)]
 struct MenuArtHandles {
     background: Handle<Image>,
-    fantasy_font: Handle<Font>,
 }
 
 #[derive(Component)]
@@ -97,7 +97,6 @@ impl FromWorld for MenuArtHandles {
 
         Self {
             background: asset_server.load("main_menu.png"),
-            fantasy_font: asset_server.load("apple_chancery.ttf"),
         }
     }
 }
@@ -105,12 +104,13 @@ impl FromWorld for MenuArtHandles {
 fn spawn_main_menu(
     mut commands: Commands,
     art: Res<MenuArtHandles>,
+    fonts: Res<GameFonts>,
     mut pending_name: ResMut<PendingPlayerName>,
     mut menu_view: ResMut<MenuViewState>,
 ) {
     pending_name.value.clear();
     menu_view.frame = MenuFrame::Landing;
-    menu_view.footer_message = "Press Play to enter your knight name.".to_string();
+    menu_view.footer_message = "Your Big Castle internship awaits.".to_string();
 
     commands
         .spawn((
@@ -158,25 +158,25 @@ fn spawn_main_menu(
                     layout
                         .spawn((
                             Node {
-                                width: px(620.0),
+                                width: px(700.0),
                                 max_width: percent(92.0),
-                                min_height: px(620.0),
+                                min_height: px(640.0),
                                 position_type: PositionType::Relative,
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
-                                border: UiRect::all(px(2.0)),
-                                border_radius: BorderRadius::px(42.0, 42.0, 34.0, 34.0),
+                                border: UiRect::all(px(1.0)),
+                                border_radius: BorderRadius::px(44.0, 44.0, 36.0, 36.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(0.03, 0.04, 0.08, 0.58)),
-                            BorderColor::all(Color::srgba(0.92, 0.9, 0.82, 0.18)),
+                            BackgroundColor(Color::srgba(0.02, 0.03, 0.06, 0.3)),
+                            BorderColor::all(Color::srgba(0.95, 0.93, 0.88, 0.08)),
                         ))
-                        .with_children(|panel| spawn_menu_content(panel, &art));
+                        .with_children(|panel| spawn_menu_content(panel, &fonts));
                 });
         });
 }
 
-fn spawn_menu_content(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
+fn spawn_menu_content(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
     panel
         .spawn((Node {
             width: percent(100.0),
@@ -184,8 +184,8 @@ fn spawn_menu_content(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
             ..default()
         },))
         .with_children(|frames| {
-            spawn_landing_frame(frames, art);
-            spawn_name_entry_frame(frames, art);
+            spawn_landing_frame(frames, fonts);
+            spawn_name_entry_frame(frames, fonts);
         });
 
     panel.spawn((
@@ -198,12 +198,12 @@ fn spawn_menu_content(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
             ..default()
         },
         Text::new(""),
-        TextFont::from_font_size(18.0),
+        body_text(&fonts.pixel_regular, 13.0),
         TextColor(Color::srgb(0.72, 0.77, 0.85)),
     ));
 }
 
-fn spawn_landing_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
+fn spawn_landing_frame(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
     panel
         .spawn((
             LandingFrame,
@@ -218,44 +218,44 @@ fn spawn_landing_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
         ))
         .with_children(|content| {
             content.spawn((
-                Text::new("THE CASTLE INTERNSHIP TRIALS"),
-                fantasy_text(&art.fantasy_font, 22.0),
-                TextColor(Color::srgb(0.93, 0.87, 0.74)),
+                Text::new("BIG CASTLE INTERNSHIP PROGRAM"),
+                body_text(&fonts.pixel_regular, 12.0),
+                TextColor(Color::srgb(0.93, 0.88, 0.76)),
             ));
 
             content
                 .spawn((Node {
                     width: percent(100.0),
-                    height: px(152.0),
+                    height: px(168.0),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
-                    margin: UiRect::top(px(18.0)),
+                    margin: UiRect::top(px(20.0)),
                     ..default()
                 },))
                 .with_children(|title| {
                     title.spawn((
                         Node {
                             position_type: PositionType::Absolute,
-                            left: px(8.0),
-                            top: px(10.0),
+                            left: px(6.0),
+                            top: px(8.0),
                             ..default()
                         },
                         Text::new("SwordBorne"),
-                        fantasy_text(&art.fantasy_font, 104.0),
-                        TextColor(Color::srgba(0.0, 0.0, 0.0, 0.42)),
+                        title_text(&fonts.pixel_bold, 72.0),
+                        TextColor(Color::srgba(0.01, 0.01, 0.02, 0.26)),
                     ));
 
                     title.spawn((
                         Text::new("SwordBorne"),
-                        fantasy_text(&art.fantasy_font, 98.0),
+                        title_text(&fonts.pixel_bold, 68.0),
                         TextColor(Color::srgb(0.99, 0.98, 0.96)),
                     ));
                 });
 
             content.spawn((
-                Text::new("A sword you must carry, throw, and reclaim."),
-                fantasy_text(&art.fantasy_font, 30.0),
-                TextColor(Color::srgb(0.88, 0.92, 0.97)),
+                Text::new("Your Big Castle internship awaits."),
+                body_text(&fonts.pixel_regular, 16.0),
+                TextColor(Color::srgb(0.9, 0.93, 0.97)),
             ));
 
             content
@@ -268,20 +268,14 @@ fn spawn_landing_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
                     ..default()
                 },))
                 .with_children(|buttons| {
-                    spawn_menu_button(buttons, &art.fantasy_font, "Play", MenuAction::Play, 0.0);
-                    spawn_menu_button(
-                        buttons,
-                        &art.fantasy_font,
-                        "Settings",
-                        MenuAction::Settings,
-                        0.0,
-                    );
-                    spawn_menu_button(buttons, &art.fantasy_font, "Quit", MenuAction::Quit, 0.0);
+                    spawn_menu_button(buttons, fonts, "Play", MenuAction::Play, 0.0);
+                    spawn_menu_button(buttons, fonts, "Settings", MenuAction::Settings, 0.0);
+                    spawn_menu_button(buttons, fonts, "Quit", MenuAction::Quit, 0.0);
                 });
         });
 }
 
-fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles) {
+fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
     panel
         .spawn((
             NameEntryFrame,
@@ -314,13 +308,13 @@ fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles
                 .with_children(|prompt| {
                     prompt.spawn((
                         Text::new("Enter Your Name"),
-                        fantasy_text(&art.fantasy_font, 36.0),
+                        title_text(&fonts.pixel_bold, 24.0),
                         TextColor(Color::srgb(0.96, 0.9, 0.74)),
                     ));
 
                     prompt.spawn((
                         Text::new("Big Castle insists the offer letter be addressed properly."),
-                        TextFont::from_font_size(16.0),
+                        body_text(&fonts.pixel_regular, 12.0),
                         TextColor(Color::srgb(0.74, 0.8, 0.88)),
                     ));
 
@@ -342,7 +336,7 @@ fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles
                             name_box.spawn((
                                 NameValueText,
                                 Text::new("> _"),
-                                fantasy_text(&art.fantasy_font, 30.0),
+                                body_text(&fonts.pixel_regular, 18.0),
                                 TextColor(Color::srgb(0.97, 0.97, 0.99)),
                             ));
                         });
@@ -357,17 +351,11 @@ fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles
                             ..default()
                         },))
                         .with_children(|row| {
-                            spawn_menu_button(
-                                row,
-                                &art.fantasy_font,
-                                "Back",
-                                MenuAction::BackToMenu,
-                                140.0,
-                            );
+                            spawn_menu_button(row, fonts, "Back", MenuAction::BackToMenu, 140.0);
 
                             spawn_menu_button(
                                 row,
-                                &art.fantasy_font,
+                                fonts,
                                 "Start Game",
                                 MenuAction::ConfirmName,
                                 220.0,
@@ -376,7 +364,7 @@ fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles
 
                     prompt.spawn((
                         Text::new("Press Enter to start or Esc to return."),
-                        TextFont::from_font_size(14.0),
+                        body_text(&fonts.pixel_regular, 10.0),
                         TextColor(Color::srgb(0.62, 0.68, 0.76)),
                     ));
                 });
@@ -385,7 +373,7 @@ fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, art: &MenuArtHandles
 
 fn spawn_menu_button(
     parent: &mut ChildSpawnerCommands,
-    fantasy_font: &Handle<Font>,
+    fonts: &GameFonts,
     label: &str,
     action: MenuAction,
     width_override: f32,
@@ -403,11 +391,11 @@ fn spawn_menu_button(
         px(74.0)
     };
     let font_size = if action == MenuAction::ConfirmName {
-        24.0
+        16.0
     } else if action == MenuAction::BackToMenu {
-        24.0
+        16.0
     } else {
-        50.0
+        28.0
     };
 
     parent
@@ -431,13 +419,21 @@ fn spawn_menu_button(
             button.spawn((
                 MenuButtonLabel,
                 Text::new(label),
-                fantasy_text(fantasy_font, font_size),
+                title_text(&fonts.pixel_bold, font_size),
                 TextColor(Color::srgb(0.98, 0.97, 0.95)),
             ));
         });
 }
 
-fn fantasy_text(font: &Handle<Font>, size: f32) -> TextFont {
+fn title_text(font: &Handle<Font>, size: f32) -> TextFont {
+    TextFont {
+        font: font.clone(),
+        font_size: size,
+        ..default()
+    }
+}
+
+fn body_text(font: &Handle<Font>, size: f32) -> TextFont {
     TextFont {
         font: font.clone(),
         font_size: size,
@@ -482,7 +478,7 @@ fn capture_name_input(
             (Key::Escape, _) => {
                 if menu_view.frame == MenuFrame::NameEntry {
                     menu_view.frame = MenuFrame::Landing;
-                    menu_view.footer_message = "Press Play to enter your knight name.".to_string();
+                    menu_view.footer_message = "Your Big Castle internship awaits.".to_string();
                 }
             }
             (Key::Backspace, _) => {
@@ -656,7 +652,7 @@ fn handle_menu_buttons(
             }
             MenuAction::Settings => {
                 menu_view.footer_message =
-                    "Settings are not wired yet. Level 1 is the current focus.".to_string();
+                    "Settings are not wired yet. The dungeon trial comes first.".to_string();
             }
             MenuAction::Quit => {
                 app_exit.write(AppExit::Success);
@@ -671,7 +667,7 @@ fn handle_menu_buttons(
             }
             MenuAction::BackToMenu => {
                 menu_view.frame = MenuFrame::Landing;
-                menu_view.footer_message = "Press Play to enter your knight name.".to_string();
+                menu_view.footer_message = "Your Big Castle internship awaits.".to_string();
             }
         }
     }

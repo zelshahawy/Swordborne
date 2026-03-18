@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::fonts::GameFonts;
 use crate::state::GameState;
 
 pub struct DialoguePlugin;
@@ -14,11 +15,6 @@ pub struct DialogueState {
     pub speaker: String,
     pub lines: Vec<String>,
     pub index: usize,
-}
-
-#[derive(Resource)]
-struct DialogueUiHandles {
-    fantasy_font: Handle<Font>,
 }
 
 #[derive(Resource, Default)]
@@ -59,7 +55,6 @@ struct DialogueHintText;
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DialogueState>()
-            .init_resource::<DialogueUiHandles>()
             .init_resource::<DialogueCinematicState>()
             .add_systems(OnEnter(GameState::InGame), spawn_dialogue_ui)
             .add_systems(OnExit(GameState::InGame), despawn_dialogue_ui)
@@ -68,16 +63,6 @@ impl Plugin for DialoguePlugin {
                 (run_dialogue_cinematic, sync_dialogue_ui, advance_dialogue)
                     .run_if(in_state(GameState::InGame)),
             );
-    }
-}
-
-impl FromWorld for DialogueUiHandles {
-    fn from_world(world: &mut World) -> Self {
-        let asset_server = world.resource::<AssetServer>().clone();
-
-        Self {
-            fantasy_font: asset_server.load("apple_chancery.ttf"),
-        }
     }
 }
 
@@ -130,7 +115,7 @@ pub fn queue_dialogue<I, S>(
     cinematic.camera_captured = false;
 }
 
-fn spawn_dialogue_ui(mut commands: Commands, ui: Res<DialogueUiHandles>) {
+fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
     commands
         .spawn((
             DialogueUiRoot,
@@ -155,8 +140,8 @@ fn spawn_dialogue_ui(mut commands: Commands, ui: Res<DialogueUiHandles>) {
                 DialogueSpeakerText,
                 Text::new(""),
                 TextFont {
-                    font: ui.fantasy_font.clone(),
-                    font_size: 38.0,
+                    font: fonts.pixel_bold.clone(),
+                    font_size: 18.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.97, 0.86, 0.58)),
@@ -166,8 +151,8 @@ fn spawn_dialogue_ui(mut commands: Commands, ui: Res<DialogueUiHandles>) {
                 DialogueBodyText,
                 Text::new(""),
                 TextFont {
-                    font: ui.fantasy_font.clone(),
-                    font_size: 28.0,
+                    font: fonts.pixel_regular.clone(),
+                    font_size: 13.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.94, 0.95, 0.98)),
@@ -176,7 +161,11 @@ fn spawn_dialogue_ui(mut commands: Commands, ui: Res<DialogueUiHandles>) {
             parent.spawn((
                 DialogueHintText,
                 Text::new("Press Space, Enter, or E to continue"),
-                TextFont::from_font_size(20.0),
+                TextFont {
+                    font: fonts.pixel_regular.clone(),
+                    font_size: 10.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.67, 0.75, 0.9)),
             ));
         });

@@ -1,20 +1,24 @@
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
+use crate::fonts::GameFonts;
 use crate::player::{GROUND_Y, PlayerAnimationHandles, spawn::spawn_player_entity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{SwordState, SwordVisualHandles, spawn::spawn_sword_entity};
 
 use super::assets::LevelArtHandles;
 use super::components::{
-    LevelBounds, LevelEntity, TrainingCrate, TrainingDoor, TutorialMarker, WizardAnimationFrame,
-    WizardAnimationTimer, WizardNpc,
+    LevelBounds, LevelEntity, LevelTwoCompletionText, SwordBlocker, TrainingCrate, TrainingDoor,
+    TrialChest, TutorialMarker, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
 };
 use super::logic::wizard_scale;
+use super::scene::{frame_level_camera, spawn_room_shell};
 use super::{
     LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X, LEVEL_ONE_SWORD_X,
-    LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X,
-    ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, TILE_SCALE, TILE_WORLD_SIZE,
+    LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_TWO_CHEST_X, LEVEL_TWO_CHEST_Y,
+    LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, LEVEL_TWO_PLATFORM_Y, LEVEL_TWO_PLAYER_START_X,
+    ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X,
+    TILE_SCALE, TILE_WORLD_SIZE,
 };
 
 pub(super) fn spawn_current_level(
@@ -24,10 +28,21 @@ pub(super) fn spawn_current_level(
     sword_visuals: Res<SwordVisualHandles>,
     campaign: Res<CampaignState>,
     profile: Res<PlayerProfile>,
+    fonts: Res<GameFonts>,
+    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
 ) {
+    let bounds = level_bounds_for(campaign.current_level);
+    frame_level_camera(
+        &mut camera_query,
+        Some(&window_query),
+        Some(bounds),
+        Some(level_camera_focus_x(campaign.current_level)),
+    );
     spawn_level_scene(
         &mut commands,
         &art,
+        &fonts,
         &player_anims,
         &sword_visuals,
         &campaign,
@@ -47,31 +62,30 @@ pub(super) fn despawn_level_entities(
 pub(super) fn spawn_level_scene(
     commands: &mut Commands,
     art: &LevelArtHandles,
+    fonts: &GameFonts,
     player_anims: &PlayerAnimationHandles,
     sword_visuals: &SwordVisualHandles,
     campaign: &CampaignState,
     profile: &PlayerProfile,
 ) {
     match campaign.current_level {
-        LevelId::LevelOne => spawn_level_one(commands, art, player_anims, sword_visuals),
-        LevelId::LevelTwo => spawn_level_two(commands, art, player_anims, sword_visuals, profile),
+        LevelId::LevelOne => spawn_level_one(commands, art, fonts, player_anims, sword_visuals),
+        LevelId::LevelTwo => {
+            spawn_level_two(commands, art, fonts, player_anims, sword_visuals, profile)
+        }
     }
 }
 
 fn spawn_level_one(
     commands: &mut Commands,
     art: &LevelArtHandles,
+    fonts: &GameFonts,
     player_anims: &PlayerAnimationHandles,
     sword_visuals: &SwordVisualHandles,
 ) {
-    commands.insert_resource(LevelBounds {
-        wall_left_x: ROOM_WALL_LEFT_X,
-        wall_right_x: ROOM_WALL_RIGHT_X,
-        player_left_x: LEVEL_ONE_PLAYER_START_X,
-        player_right_x: ROOM_PLAYER_RIGHT_X,
-    });
+    commands.insert_resource(level_bounds_for(LevelId::LevelOne));
 
-    spawn_room_shell(commands, art, "LEVEL 1");
+    spawn_room_shell(commands, art, fonts, "LEVEL 1");
 
     let player = spawn_player_entity(
         commands,
@@ -93,6 +107,7 @@ fn spawn_level_one(
     spawn_tutorial_marker(
         commands,
         art,
+        fonts,
         Vec3::new(LEVEL_ONE_TUTORIAL_X, GROUND_Y, 4.0),
     );
     spawn_training_crate(commands, art, Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y, 4.0));
@@ -107,23 +122,19 @@ fn spawn_level_one(
 fn spawn_level_two(
     commands: &mut Commands,
     art: &LevelArtHandles,
+    fonts: &GameFonts,
     player_anims: &PlayerAnimationHandles,
     sword_visuals: &SwordVisualHandles,
     profile: &PlayerProfile,
 ) {
-    commands.insert_resource(LevelBounds {
-        wall_left_x: ROOM_WALL_LEFT_X,
-        wall_right_x: ROOM_WALL_RIGHT_X,
-        player_left_x: ROOM_PLAYER_LEFT_X,
-        player_right_x: ROOM_PLAYER_RIGHT_X,
-    });
+    commands.insert_resource(level_bounds_for(LevelId::LevelTwo));
 
-    spawn_room_shell(commands, art, "LEVEL 2");
+    spawn_room_shell(commands, art, fonts, "LEVEL 2");
 
     let player = spawn_player_entity(
         commands,
         player_anims,
-        Vec3::new(-500.0, GROUND_Y, 5.0),
+        Vec3::new(LEVEL_TWO_PLAYER_START_X, GROUND_Y, 5.0),
         true,
     );
     commands.entity(player).insert(LevelEntity);
@@ -131,10 +142,32 @@ fn spawn_level_two(
     let sword = spawn_sword_entity(
         commands,
         sword_visuals,
-        Vec3::new(-500.0, GROUND_Y, 4.0),
+        Vec3::new(LEVEL_TWO_PLAYER_START_X, GROUND_Y, 4.0),
         SwordState::Equipped,
     );
     commands.entity(sword).insert(LevelEntity);
+
+    spawn_level_two_platform(commands, art);
+    spawn_trial_chest(
+        commands,
+        art,
+        Vec3::new(LEVEL_TWO_CHEST_X, LEVEL_TWO_CHEST_Y, 5.0),
+    );
+
+    commands.spawn((
+        LevelEntity,
+        Text2d::new(
+            "Left Click to slash.\nHold Right Click to aim the sword.\nRelease to send it into the chest above.",
+        ),
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 12.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.91, 0.94, 0.98)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, 4.0),
+    ));
 
     let knight_name = if profile.name.is_empty() {
         "Knight"
@@ -144,93 +177,66 @@ fn spawn_level_two(
 
     commands.spawn((
         LevelEntity,
+        LevelTwoCompletionText,
+        Visibility::Hidden,
         Text2d::new(format!(
-            "Well done, {knight_name}.\nLevel 2 is ready for the next trial."
+            "{knight_name}, the offer letter is yours.\nLevel 3 is deeper in the dungeon."
         )),
-        TextFont::from_font_size(34.0),
-        TextColor(Color::srgb(0.97, 0.92, 0.72)),
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.98, 0.92, 0.72)),
         TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, 40.0, 10.0),
+        Transform::from_xyz(0.0, ROOM_CEILING_Y - 30.0, 8.0),
     ));
 }
 
-fn spawn_room_shell(commands: &mut Commands, art: &LevelArtHandles, level_label: &str) {
-    commands.spawn((
-        LevelEntity,
-        Sprite::from_color(Color::srgb(0.04, 0.05, 0.08), Vec2::new(1400.0, 900.0)),
-        Transform::from_xyz(0.0, 0.0, -20.0),
-    ));
+fn spawn_level_two_platform(commands: &mut Commands, art: &LevelArtHandles) {
+    let platform_tiles = 3usize;
+    let first_tile_x = LEVEL_TWO_CHEST_X - TILE_WORLD_SIZE;
 
-    commands.spawn((
-        LevelEntity,
-        Sprite::from_color(Color::srgb(0.1, 0.13, 0.18), Vec2::new(1200.0, 520.0)),
-        Transform::from_xyz(0.0, -20.0, -18.0),
-    ));
-
-    for tile_index in 0..20 {
-        let x = -608.0 + tile_index as f32 * TILE_WORLD_SIZE;
+    for tile_index in 0..platform_tiles {
+        let x = first_tile_x + tile_index as f32 * TILE_WORLD_SIZE;
         spawn_centered_tile(
             commands,
-            art.floor.clone(),
-            Vec3::new(x, GROUND_Y - 32.0, 0.0),
+            art.floor_tiles[(tile_index + 1) % art.floor_tiles.len()].clone(),
+            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - TILE_WORLD_SIZE * 0.5, 1.5),
+        );
+        spawn_centered_tile(
+            commands,
+            art.edge_down.clone(),
+            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - TILE_WORLD_SIZE * 1.5, 1.4),
         );
     }
 
-    let top_y = GROUND_Y + 288.0;
-    spawn_centered_tile(
-        commands,
-        art.wall_top_left.clone(),
-        Vec3::new(-608.0, top_y, 0.0),
-    );
-
-    for tile_index in 1..19 {
-        let x = -608.0 + tile_index as f32 * TILE_WORLD_SIZE;
-        spawn_centered_tile(commands, art.wall_top_mid.clone(), Vec3::new(x, top_y, 0.0));
+    for x in [LEVEL_TWO_CHEST_X - 98.0, LEVEL_TWO_CHEST_X + 98.0] {
+        spawn_bottom_anchored_sprite(
+            commands,
+            art.column_wall.clone(),
+            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - 64.0, 1.6),
+            TILE_SCALE,
+        );
     }
 
-    spawn_centered_tile(
+    spawn_sword_blocker(
         commands,
-        art.wall_top_right.clone(),
-        Vec3::new(608.0, top_y, 0.0),
+        Vec2::new(LEVEL_TWO_CHEST_X, LEVEL_TWO_PLATFORM_Y - 32.0),
+        Vec2::new(112.0, 32.0),
     );
+}
 
-    for row in 0..5 {
-        let y = GROUND_Y + 32.0 + row as f32 * TILE_WORLD_SIZE;
-        spawn_centered_tile(commands, art.wall_mid.clone(), Vec3::new(-608.0, y, 0.0));
-        spawn_centered_tile(commands, art.wall_mid.clone(), Vec3::new(608.0, y, 0.0));
-    }
-
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.column_wall.clone(),
-        Vec3::new(-472.0, GROUND_Y, 1.0),
-        TILE_SCALE,
-    );
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.column_wall.clone(),
-        Vec3::new(472.0, GROUND_Y, 1.0),
-        TILE_SCALE,
-    );
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.banner_blue.clone(),
-        Vec3::new(-180.0, GROUND_Y + 180.0, 1.0),
-        TILE_SCALE,
-    );
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.banner_red.clone(),
-        Vec3::new(220.0, GROUND_Y + 180.0, 1.0),
-        TILE_SCALE,
-    );
-
+fn spawn_trial_chest(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
     commands.spawn((
         LevelEntity,
-        Text2d::new(level_label.to_string()),
-        TextFont::from_font_size(28.0),
-        TextColor(Color::srgb(0.81, 0.85, 0.92)),
-        Transform::from_xyz(0.0, top_y - 30.0, 2.0),
+        TrialChest { open: false },
+        SwordBlocker {
+            half_extents: Vec2::new(24.0, 24.0),
+        },
+        Sprite::from_image(art.chest_frames[0].clone()),
+        Anchor::BOTTOM_CENTER,
+        Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
     ));
 }
 
@@ -246,7 +252,12 @@ fn spawn_wizard(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) 
     ));
 }
 
-fn spawn_tutorial_marker(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
+fn spawn_tutorial_marker(
+    commands: &mut Commands,
+    art: &LevelArtHandles,
+    fonts: &GameFonts,
+    position: Vec3,
+) {
     spawn_bottom_anchored_sprite(commands, art.tutorial_base.clone(), position, TILE_SCALE);
 
     commands.spawn((
@@ -259,7 +270,11 @@ fn spawn_tutorial_marker(commands: &mut Commands, art: &LevelArtHandles, positio
     commands.spawn((
         LevelEntity,
         Text2d::new("!".to_string()),
-        TextFont::from_font_size(54.0),
+        TextFont {
+            font: fonts.pixel_bold.clone(),
+            font_size: 24.0,
+            ..default()
+        },
         TextColor(Color::srgb(0.99, 0.86, 0.34)),
         Transform::from_xyz(position.x, position.y + 120.0, position.z + 1.0),
     ));
@@ -322,4 +337,39 @@ fn spawn_bottom_anchored_sprite(
         Anchor::BOTTOM_CENTER,
         Transform::from_translation(position).with_scale(Vec3::splat(scale)),
     ));
+}
+
+fn spawn_sword_blocker(commands: &mut Commands, center: Vec2, half_extents: Vec2) {
+    commands.spawn((
+        LevelEntity,
+        SwordBlocker { half_extents },
+        Transform::from_xyz(center.x, center.y, 2.0),
+        GlobalTransform::default(),
+    ));
+}
+
+pub(super) fn level_bounds_for(level: LevelId) -> LevelBounds {
+    match level {
+        LevelId::LevelOne => LevelBounds {
+            wall_left_x: ROOM_WALL_LEFT_X,
+            wall_right_x: ROOM_WALL_RIGHT_X,
+            player_left_x: LEVEL_ONE_PLAYER_START_X,
+            player_right_x: ROOM_PLAYER_RIGHT_X,
+            ceiling_y: ROOM_CEILING_Y,
+        },
+        LevelId::LevelTwo => LevelBounds {
+            wall_left_x: ROOM_WALL_LEFT_X,
+            wall_right_x: ROOM_WALL_RIGHT_X,
+            player_left_x: ROOM_PLAYER_LEFT_X,
+            player_right_x: ROOM_PLAYER_RIGHT_X,
+            ceiling_y: ROOM_CEILING_Y,
+        },
+    }
+}
+
+pub(super) fn level_camera_focus_x(level: LevelId) -> f32 {
+    match level {
+        LevelId::LevelOne => LEVEL_ONE_PLAYER_START_X,
+        LevelId::LevelTwo => LEVEL_TWO_PLAYER_START_X,
+    }
 }

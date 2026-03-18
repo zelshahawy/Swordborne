@@ -9,6 +9,8 @@ pub const FRAME_SIZE: UVec2 = UVec2::new(24, 24);
 pub const SLASH_FRAME_SIZE: UVec2 = UVec2::new(48, 48);
 
 pub const PLAYER_SCALE: f32 = 4.0;
+pub const PLAYER_HALF_WIDTH: f32 = 18.0;
+pub const PLAYER_HEIGHT: f32 = 80.0;
 
 pub const IDLE_FPS: f32 = 6.0;
 pub const RUN_FPS: f32 = 10.0;

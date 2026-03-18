@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 mod combat;
 mod dialogue;
+mod fonts;
 mod level;
 mod menu;
 mod player;
@@ -10,6 +11,7 @@ mod sword;
 
 use combat::CombatPlugin;
 use dialogue::DialoguePlugin;
+use fonts::FontPlugin;
 use level::LevelPlugin;
 use menu::MenuPlugin;
 use player::PlayerPlugin;
@@ -21,7 +23,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "SwordBorne".into(),
-                resolution: (1280, 720).into(),
+                resolution: (1600, 900).into(),
                 resizable: false,
                 ..default()
             }),
@@ -30,6 +32,7 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, setup_camera)
         .add_plugins((
+            FontPlugin,
             MenuPlugin,
             DialoguePlugin,
             PlayerPlugin,

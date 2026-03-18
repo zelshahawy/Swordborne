@@ -1,6 +1,8 @@
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 
 use crate::dialogue::{DialogueCinematicState, DialogueState, queue_dialogue};
+use crate::fonts::GameFonts;
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{Sword, SwordState};
@@ -8,10 +10,11 @@ use crate::sword::{Sword, SwordState};
 use super::LEVEL_ONE_DOOR_X;
 use super::assets::LevelArtHandles;
 use super::components::{
-    LevelBounds, PendingLevelTransition, TrainingCrate, TrainingDoor, TutorialMarker,
-    WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
+    LevelBounds, LevelTwoCompletionText, PendingLevelTransition, TrainingCrate, TrainingDoor,
+    TrialChest, TutorialMarker, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
 };
-use super::spawn::spawn_level_scene;
+use super::scene::frame_level_camera;
+use super::spawn::{level_bounds_for, level_camera_focus_x, spawn_level_scene};
 
 const WIZARD_SCALE: f32 = 4.0;
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
@@ -200,7 +203,8 @@ pub(super) fn trigger_tutorial_hint(
         "Training Sign",
         vec![
             "Press E near the sword to pick it up.".to_string(),
-            "Press H to slash. Press J to throw.".to_string(),
+            "Left Click to slash.".to_string(),
+            "Hold Right Click to aim. Release to throw.".to_string(),
             "If you throw it, you still have to walk over and grab it again.".to_string(),
         ],
         marker_transform.translation + Vec3::new(0.0, 90.0, 0.0),
@@ -275,6 +279,64 @@ pub(super) fn update_training_door_visual(
     }
 }
 
+pub(super) fn update_level_two_chest_visual(
+    art: Res<LevelArtHandles>,
+    mut query: Query<(&TrialChest, &mut Sprite), Changed<TrialChest>>,
+) {
+    for (chest, mut sprite) in &mut query {
+        let frame = if chest.open { 2 } else { 0 };
+        *sprite = Sprite::from_image(art.chest_frames[frame].clone());
+    }
+}
+
+pub(super) fn sync_level_two_completion_text(
+    campaign: Res<CampaignState>,
+    mut query: Query<&mut Visibility, With<LevelTwoCompletionText>>,
+) {
+    if !campaign.is_changed() {
+        return;
+    }
+
+    for mut visibility in &mut query {
+        *visibility =
+            if campaign.current_level == LevelId::LevelTwo && campaign.level_two_chest_open {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+    }
+}
+
+pub(super) fn open_level_two_chest(
+    mut campaign: ResMut<CampaignState>,
+    mut chest_query: Query<(&Transform, &mut TrialChest)>,
+    sword_query: Query<(&Transform, &SwordState), With<Sword>>,
+) {
+    if campaign.current_level != LevelId::LevelTwo || campaign.level_two_chest_open {
+        return;
+    }
+
+    let Ok((chest_transform, mut chest)) = chest_query.single_mut() else {
+        return;
+    };
+
+    for (sword_transform, sword_state) in &sword_query {
+        if *sword_state == SwordState::Equipped {
+            continue;
+        }
+
+        if sword_transform
+            .translation
+            .distance(chest_transform.translation)
+            <= 84.0
+        {
+            chest.open = true;
+            campaign.level_two_chest_open = true;
+            break;
+        }
+    }
+}
+
 pub(super) fn try_advance_level(
     campaign: Res<CampaignState>,
     mut pending_transition: ResMut<PendingLevelTransition>,
@@ -305,10 +367,13 @@ pub(super) fn apply_level_transition(
     mut pending_transition: ResMut<PendingLevelTransition>,
     mut campaign: ResMut<CampaignState>,
     art: Res<LevelArtHandles>,
+    fonts: Res<GameFonts>,
     player_anims: Res<crate::player::PlayerAnimationHandles>,
     sword_visuals: Res<crate::sword::SwordVisualHandles>,
     profile: Res<PlayerProfile>,
     level_entities: Query<Entity, With<super::components::LevelEntity>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
 ) {
     let Some(next_level) = pending_transition.next_level.take() else {
         return;
@@ -320,12 +385,22 @@ pub(super) fn apply_level_transition(
 
     campaign.current_level = next_level;
     campaign.wizard_intro_seen = false;
+    campaign.wizard_followup_seen = false;
     campaign.tutorial_hint_seen = false;
     campaign.crate_broken = false;
+    campaign.level_two_chest_open = false;
+
+    frame_level_camera(
+        &mut camera_query,
+        Some(&window_query),
+        Some(level_bounds_for(campaign.current_level)),
+        Some(level_camera_focus_x(campaign.current_level)),
+    );
 
     spawn_level_scene(
         &mut commands,
         &art,
+        &fonts,
         &player_anims,
         &sword_visuals,
         &campaign,

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::player::{ActionTimer, HasSword, Player, PlayerActionState};
+use crate::sword::SwordAimState;
 
 const SLASH_DURATION: f32 = 0.22;
 
@@ -15,8 +16,17 @@ type SlashQuery<'w, 's> = Query<
     With<Player>,
 >;
 
-pub fn start_slash(keyboard: Res<ButtonInput<KeyCode>>, mut query: SlashQuery) {
-    if !keyboard.just_pressed(KeyCode::KeyH) {
+pub fn start_slash(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    aim: Option<Res<SwordAimState>>,
+    mut query: SlashQuery,
+) {
+    if !mouse.just_pressed(MouseButton::Left) && !keyboard.just_pressed(KeyCode::KeyH) {
+        return;
+    }
+
+    if aim.is_some_and(|aim| aim.active) {
         return;
     }
 

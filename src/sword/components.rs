@@ -44,6 +44,31 @@ pub struct SwordTrail {
     pub start_size: Vec2,
 }
 
+#[derive(Resource, Debug, Default)]
+pub struct SwordAimState {
+    pub active: bool,
+    pub origin: Vec2,
+    pub direction: Vec2,
+    pub preview_end: Vec2,
+    pub blocked: bool,
+}
+
+impl SwordAimState {
+    pub fn reset(&mut self) {
+        self.active = false;
+        self.origin = Vec2::ZERO;
+        self.direction = Vec2::ZERO;
+        self.preview_end = Vec2::ZERO;
+        self.blocked = false;
+    }
+}
+
+#[derive(Component)]
+pub struct SwordAimGuide;
+
+#[derive(Component)]
+pub struct SwordAimReticle;
+
 #[derive(Resource)]
 pub struct SwordVisualHandles {
     pub spinning_texture: Handle<Image>,
