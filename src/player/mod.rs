@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+use crate::dialogue::gameplay_unlocked;
+use crate::state::GameState;
+
 pub mod animation;
 pub mod components;
 pub mod movement;
@@ -7,13 +10,13 @@ pub mod spawn;
 
 use animation::{animate_player, select_animation, update_player_flip};
 use movement::{apply_gravity, move_player, player_input};
-use spawn::{load_player_animations, spawn_player};
+use spawn::load_player_animations;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (load_player_animations, spawn_player).chain())
+        app.add_systems(Startup, load_player_animations)
             .add_systems(
                 Update,
                 (
@@ -24,7 +27,9 @@ impl Plugin for PlayerPlugin {
                     animate_player,
                     update_player_flip,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(GameState::InGame))
+                    .run_if(gameplay_unlocked),
             );
     }
 }

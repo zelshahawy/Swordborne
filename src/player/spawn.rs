@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
 use crate::player::components::{
-    ActionTimer, AnimationTimer, CurrentAnimation, FRAME_SIZE, Facing, GROUND_Y, HasSword,
-    IDLE_FPS, OnGround, PLAYER_SCALE, Player, PlayerActionState, PlayerAnimState,
-    PlayerAnimationHandles, SLASH_FRAME_SIZE, SLASH_FRAMES, Velocity,
+    ActionTimer, AnimationTimer, CurrentAnimation, FRAME_SIZE, Facing, HasSword, IDLE_FPS,
+    OnGround, PLAYER_SCALE, Player, PlayerActionState, PlayerAnimState, PlayerAnimationHandles,
+    SLASH_FRAME_SIZE, SLASH_FRAMES, Velocity,
 };
 
 pub fn load_player_animations(
@@ -67,36 +67,42 @@ pub fn load_player_animations(
     });
 }
 
-pub fn spawn_player(mut commands: Commands, anims: Res<PlayerAnimationHandles>) {
-    let sprite = Sprite::from_atlas_image(
-        anims.idle_no_sword_texture.clone(),
-        TextureAtlas {
-            layout: anims.idle_no_sword_layout.clone(),
-            index: 0,
-        },
-    );
+pub fn spawn_player_entity(
+    commands: &mut Commands,
+    anims: &PlayerAnimationHandles,
+    position: Vec3,
+    has_sword: bool,
+) -> Entity {
+    let (texture, layout) = if has_sword {
+        (
+            anims.idle_sword_texture.clone(),
+            anims.idle_sword_layout.clone(),
+        )
+    } else {
+        (
+            anims.idle_no_sword_texture.clone(),
+            anims.idle_no_sword_layout.clone(),
+        )
+    };
 
-    commands.spawn((
-        sprite,
-        Anchor::BOTTOM_CENTER,
-        Transform::from_xyz(-450.0, GROUND_Y, 1.0).with_scale(Vec3::splat(PLAYER_SCALE)),
-        Player,
-        Velocity::default(),
-        Facing(1.0),
-        OnGround(true),
-        HasSword(false),
-        PlayerActionState::None,
-        AnimationTimer(Timer::from_seconds(1.0 / IDLE_FPS, TimerMode::Repeating)),
-        ActionTimer(Timer::from_seconds(0.0, TimerMode::Once)),
-        CurrentAnimation {
-            state: PlayerAnimState::Idle,
-            frame_count: 4,
-            with_sword: false,
-        },
-    ));
-
-    commands.spawn((
-        Sprite::from_color(Color::srgb(0.2, 0.2, 0.2), Vec2::new(1200.0, 40.0)),
-        Transform::from_xyz(-40.0, GROUND_Y - 40.0, 0.0),
-    ));
+    commands
+        .spawn((
+            Sprite::from_atlas_image(texture, TextureAtlas { layout, index: 0 }),
+            Anchor::BOTTOM_CENTER,
+            Transform::from_translation(position).with_scale(Vec3::splat(PLAYER_SCALE)),
+            Player,
+            Velocity::default(),
+            Facing(1.0),
+            OnGround(true),
+            HasSword(has_sword),
+            PlayerActionState::None,
+            AnimationTimer(Timer::from_seconds(1.0 / IDLE_FPS, TimerMode::Repeating)),
+            ActionTimer(Timer::from_seconds(0.0, TimerMode::Once)),
+            CurrentAnimation {
+                state: PlayerAnimState::Idle,
+                frame_count: 4,
+                with_sword: has_sword,
+            },
+        ))
+        .id()
 }

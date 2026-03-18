@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 
 mod combat;
+mod dialogue;
+mod level;
+mod menu;
 mod player;
-mod puzzle;
 mod state;
 mod sword;
 
 use combat::CombatPlugin;
+use dialogue::DialoguePlugin;
+use level::LevelPlugin;
+use menu::MenuPlugin;
 use player::PlayerPlugin;
-use puzzle::PuzzlePlugin;
 use state::GameState;
 use sword::SwordPlugin;
 
@@ -25,7 +29,14 @@ fn main() {
         }))
         .init_state::<GameState>()
         .add_systems(Startup, setup_camera)
-        .add_plugins((PlayerPlugin, SwordPlugin, CombatPlugin, PuzzlePlugin))
+        .add_plugins((
+            MenuPlugin,
+            DialoguePlugin,
+            PlayerPlugin,
+            SwordPlugin,
+            CombatPlugin,
+            LevelPlugin,
+        ))
         .run();
 }
 

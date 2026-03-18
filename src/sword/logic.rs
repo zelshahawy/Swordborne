@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
+use crate::level::LevelBounds;
 use crate::player::{Facing, GROUND_Y, HasSword, Player};
 use crate::sword::{
     Sword, SwordAnimationTimer, SwordFlight, SwordState, SwordTrail, SwordVelocity,
@@ -12,8 +13,6 @@ const STUCK_PICKUP_HORIZONTAL_DISTANCE: f32 = 56.0;
 const STUCK_PICKUP_VERTICAL_DISTANCE: f32 = 96.0;
 const THROW_SPEED_X: f32 = 760.0;
 const SWORD_GRAVITY: f32 = -900.0;
-const LEFT_WALL_X: f32 = -600.0;
-const RIGHT_WALL_X: f32 = 600.0;
 const SPINNING_SWORD_FRAMES: usize = 4;
 const FLYING_SWORD_HALF_SIZE: f32 = 48.0;
 const THROW_VERTICAL_OFFSET: f32 = 10.0 + FLYING_SWORD_HALF_SIZE;
@@ -181,13 +180,14 @@ pub fn update_flying_sword(
     mut commands: Commands,
     time: Res<Time>,
     sword_visuals: Res<SwordVisualHandles>,
+    bounds: Res<LevelBounds>,
     mut sword_query: SwordFlightQuery,
 ) {
     let delta = time.delta();
     let delta_secs = delta.as_secs_f32();
     let ground_contact_y = GROUND_Y + FLYING_SWORD_HALF_SIZE;
-    let left_wall_contact_x = LEFT_WALL_X + FLYING_SWORD_HALF_SIZE;
-    let right_wall_contact_x = RIGHT_WALL_X - FLYING_SWORD_HALF_SIZE;
+    let left_wall_contact_x = bounds.wall_left_x + FLYING_SWORD_HALF_SIZE;
+    let right_wall_contact_x = bounds.wall_right_x - FLYING_SWORD_HALF_SIZE;
 
     for (
         mut transform,
@@ -246,7 +246,7 @@ pub fn update_flying_sword(
         }
 
         if transform.translation.x <= left_wall_contact_x {
-            transform.translation.x = LEFT_WALL_X;
+            transform.translation.x = bounds.wall_left_x;
             velocity.x = 0.0;
             velocity.y = 0.0;
             transform.rotation = Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2);
@@ -257,7 +257,7 @@ pub fn update_flying_sword(
         }
 
         if transform.translation.x >= right_wall_contact_x {
-            transform.translation.x = RIGHT_WALL_X;
+            transform.translation.x = bounds.wall_right_x;
             velocity.x = 0.0;
             velocity.y = 0.0;
             transform.rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);

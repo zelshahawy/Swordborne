@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
-use crate::player::GROUND_Y;
 use crate::sword::{
     Sword, SwordAnimationTimer, SwordFlight, SwordState, SwordVelocity, SwordVisualHandles,
 };
@@ -33,19 +32,32 @@ pub fn load_sword_visuals(
     });
 }
 
-pub fn spawn_sword_at_start(mut commands: Commands, sword_visuals: Res<SwordVisualHandles>) {
-    commands.spawn((
-        Sprite::from_image(sword_visuals.stuck_texture.clone()),
-        Anchor::BOTTOM_CENTER,
-        Transform::from_xyz(-300.0, GROUND_Y, 1.0).with_scale(Vec3::splat(SWORD_SCALE)),
-        Visibility::Visible,
-        Sword,
-        SwordState::Grounded,
-        SwordVelocity::default(),
-        SwordFlight::default(),
-        SwordAnimationTimer(Timer::from_seconds(
-            1.0 / SPINNING_SWORD_FPS,
-            TimerMode::Repeating,
-        )),
-    ));
+pub fn spawn_sword_entity(
+    commands: &mut Commands,
+    sword_visuals: &SwordVisualHandles,
+    position: Vec3,
+    state: SwordState,
+) -> Entity {
+    let visibility = if state == SwordState::Equipped {
+        Visibility::Hidden
+    } else {
+        Visibility::Visible
+    };
+
+    commands
+        .spawn((
+            Sprite::from_image(sword_visuals.stuck_texture.clone()),
+            Anchor::BOTTOM_CENTER,
+            Transform::from_translation(position).with_scale(Vec3::splat(SWORD_SCALE)),
+            visibility,
+            Sword,
+            state,
+            SwordVelocity::default(),
+            SwordFlight::default(),
+            SwordAnimationTimer(Timer::from_seconds(
+                1.0 / SPINNING_SWORD_FPS,
+                TimerMode::Repeating,
+            )),
+        ))
+        .id()
 }
