@@ -35,10 +35,7 @@ pub fn player_input(
     }
 }
 
-pub fn apply_gravity(
-    mut query: Query<(&mut Velocity, &OnGround), With<Player>>,
-    time: Res<Time>,
-) {
+pub fn apply_gravity(mut query: Query<(&mut Velocity, &OnGround), With<Player>>, time: Res<Time>) {
     let Ok((mut velocity, on_ground)) = query.single_mut() else {
         return;
     };

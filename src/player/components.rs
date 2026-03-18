@@ -6,11 +6,16 @@ pub const JUMP_VELOCITY: f32 = 500.0;
 pub const GRAVITY: f32 = -1200.0;
 
 pub const FRAME_SIZE: UVec2 = UVec2::new(24, 24);
+pub const SLASH_FRAME_SIZE: UVec2 = UVec2::new(48, 48);
+
 pub const PLAYER_SCALE: f32 = 4.0;
 
 pub const IDLE_FPS: f32 = 6.0;
 pub const RUN_FPS: f32 = 10.0;
 pub const JUMP_FPS: f32 = 8.0;
+pub const SLASH_FPS: f32 = 12.0;
+
+pub const SLASH_FRAMES: usize = 4;
 
 #[derive(Component)]
 pub struct Player;
@@ -35,10 +40,21 @@ pub enum PlayerAnimState {
     Idle,
     Run,
     Jump,
+    Slash,
+}
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Default)]
+pub enum PlayerActionState {
+    #[default]
+    None,
+    Slash,
 }
 
 #[derive(Component)]
 pub struct AnimationTimer(pub Timer);
+
+#[derive(Component)]
+pub struct ActionTimer(pub Timer);
 
 #[derive(Component)]
 pub struct CurrentAnimation {
@@ -65,4 +81,7 @@ pub struct PlayerAnimationHandles {
 
     pub jump_no_sword_layout: Handle<TextureAtlasLayout>,
     pub jump_no_sword_texture: Handle<Image>,
+
+    pub slash_sword_layout: Handle<TextureAtlasLayout>,
+    pub slash_sword_texture: Handle<Image>,
 }

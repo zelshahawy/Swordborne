@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
 use crate::player::components::{
-    AnimationTimer, CurrentAnimation, Facing, FRAME_SIZE, GROUND_Y, HasSword, IDLE_FPS,
-    OnGround, PLAYER_SCALE, Player, PlayerAnimState, PlayerAnimationHandles, Velocity,
+    ActionTimer, AnimationTimer, CurrentAnimation, FRAME_SIZE, Facing, GROUND_Y, HasSword,
+    IDLE_FPS, OnGround, PLAYER_SCALE, Player, PlayerActionState, PlayerAnimState,
+    PlayerAnimationHandles, SLASH_FRAME_SIZE, SLASH_FRAMES, Velocity,
 };
 
 pub fn load_player_animations(
@@ -12,18 +13,17 @@ pub fn load_player_animations(
 ) {
     let idle_sword_texture =
         asset_server.load("blue_knight/idle/action/blue_knight_action_idle.png");
-    let idle_no_sword_texture =
-        asset_server.load("blue_knight/idle/no_sword/blue_knight_idle.png");
+    let idle_no_sword_texture = asset_server.load("blue_knight/idle/no_sword/blue_knight_idle.png");
 
-    let run_sword_texture =
-        asset_server.load("blue_knight/run/action/blue_knight_action_run.png");
-    let run_no_sword_texture =
-        asset_server.load("blue_knight/run/no_sword/blue_knight_run.png");
+    let run_sword_texture = asset_server.load("blue_knight/run/action/blue_knight_action_run.png");
+    let run_no_sword_texture = asset_server.load("blue_knight/run/no_sword/blue_knight_run.png");
 
     let jump_sword_texture =
         asset_server.load("blue_knight/jump_stop/action/blue_knight_jump_action.png");
     let jump_no_sword_texture =
         asset_server.load("blue_knight/jump_stop/no_sword/blue_knight_jump_strip2.png");
+
+    let slash_sword_texture = asset_server.load("blue_knight/attack/combo1/blue_knight_attack.png");
 
     let idle_sword_layout =
         atlas_layouts.add(TextureAtlasLayout::from_grid(FRAME_SIZE, 4, 1, None, None));
@@ -40,6 +40,14 @@ pub fn load_player_animations(
     let jump_no_sword_layout =
         atlas_layouts.add(TextureAtlasLayout::from_grid(FRAME_SIZE, 2, 1, None, None));
 
+    let slash_sword_layout = atlas_layouts.add(TextureAtlasLayout::from_grid(
+        SLASH_FRAME_SIZE,
+        SLASH_FRAMES as u32,
+        1,
+        None,
+        None,
+    ));
+
     commands.insert_resource(PlayerAnimationHandles {
         idle_sword_layout,
         idle_sword_texture,
@@ -53,15 +61,17 @@ pub fn load_player_animations(
         jump_sword_texture,
         jump_no_sword_layout,
         jump_no_sword_texture,
+        slash_sword_layout,
+        slash_sword_texture,
     });
 }
 
 pub fn spawn_player(mut commands: Commands, anims: Res<PlayerAnimationHandles>) {
     commands.spawn((
         Sprite::from_atlas_image(
-            anims.idle_sword_texture.clone(),
+            anims.idle_no_sword_texture.clone(),
             TextureAtlas {
-                layout: anims.idle_sword_layout.clone(),
+                layout: anims.idle_no_sword_layout.clone(),
                 index: 0,
             },
         ),
@@ -70,8 +80,10 @@ pub fn spawn_player(mut commands: Commands, anims: Res<PlayerAnimationHandles>) 
         Velocity::default(),
         Facing(1.0),
         OnGround(true),
-        HasSword(true),
+        HasSword(false),
+        PlayerActionState::None,
         AnimationTimer(Timer::from_seconds(1.0 / IDLE_FPS, TimerMode::Repeating)),
+        ActionTimer(Timer::from_seconds(0.0, TimerMode::Once)),
         CurrentAnimation {
             state: PlayerAnimState::Idle,
             frame_count: 4,
