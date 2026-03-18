@@ -3,23 +3,23 @@ use bevy::window::PrimaryWindow;
 
 use crate::dialogue::{DialogueCinematicState, DialogueState, queue_dialogue};
 use crate::fonts::GameFonts;
+use crate::level::{
+    BreakableCrate, CrateBreakShard, CrateReward, LEVEL_ONE_DOOR_X, LevelArtHandles, LevelBounds,
+    LevelEntity, LevelTwoCompletionText, PendingLevelTransition, TrainingDoor, TutorialMarker,
+    WizardAnimationFrame, WizardAnimationTimer, WizardNpc, frame_level_camera, level_bounds_for,
+    level_camera_focus_x, spawn_level_scene,
+};
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
-use crate::sword::{Sword, SwordState};
-
-use super::LEVEL_ONE_DOOR_X;
-use super::assets::LevelArtHandles;
-use super::components::{
-    LevelBounds, LevelTwoCompletionText, PendingLevelTransition, TrainingCrate, TrainingDoor,
-    TrialChest, TutorialMarker, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
-};
-use super::scene::frame_level_camera;
-use super::spawn::{level_bounds_for, level_camera_focus_x, spawn_level_scene};
+use crate::sword::{Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordState, SwordTrail};
 
 const WIZARD_SCALE: f32 = 4.0;
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
+const CRATE_BREAK_RADIUS: f32 = 86.0;
+const CRATE_SHARD_LIFETIME: f32 = 0.42;
+const CRATE_SHARD_GRAVITY: f32 = -980.0;
 
-pub(super) fn animate_wizard_idle(
+pub(crate) fn animate_wizard_idle(
     time: Res<Time>,
     art: Res<LevelArtHandles>,
     mut query: Query<
@@ -42,7 +42,7 @@ pub(super) fn animate_wizard_idle(
     }
 }
 
-pub(super) fn constrain_player_to_level(
+pub(crate) fn constrain_player_to_level(
     campaign: Res<CampaignState>,
     bounds: Res<LevelBounds>,
     mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>,
@@ -73,7 +73,7 @@ pub(super) fn constrain_player_to_level(
     }
 }
 
-pub(super) fn trigger_wizard_intro(
+pub(crate) fn trigger_wizard_intro(
     mut campaign: ResMut<CampaignState>,
     dialogue: Res<DialogueState>,
     mut cinematic: ResMut<DialogueCinematicState>,
@@ -126,7 +126,7 @@ pub(super) fn trigger_wizard_intro(
     );
 }
 
-pub(super) fn trigger_wizard_followup(
+pub(crate) fn trigger_wizard_followup(
     mut campaign: ResMut<CampaignState>,
     dialogue: Res<DialogueState>,
     mut cinematic: ResMut<DialogueCinematicState>,
@@ -164,7 +164,7 @@ pub(super) fn trigger_wizard_followup(
     );
 }
 
-pub(super) fn trigger_tutorial_hint(
+pub(crate) fn trigger_tutorial_hint(
     mut campaign: ResMut<CampaignState>,
     dialogue: Res<DialogueState>,
     mut cinematic: ResMut<DialogueCinematicState>,
@@ -211,62 +211,68 @@ pub(super) fn trigger_tutorial_hint(
     );
 }
 
-pub(super) fn break_training_crate(
+pub(crate) fn break_crates(
     mut commands: Commands,
     mut campaign: ResMut<CampaignState>,
-    crate_query: Query<(Entity, &Transform), With<TrainingCrate>>,
+    art: Res<LevelArtHandles>,
+    crate_query: Query<(Entity, &Transform, &BreakableCrate)>,
     mut door_query: Query<&mut TrainingDoor>,
     player_query: Query<(&Transform, &Facing, &HasSword, &PlayerActionState), With<Player>>,
     sword_query: Query<(&Transform, &SwordState), With<Sword>>,
 ) {
-    if campaign.current_level != LevelId::LevelOne || campaign.crate_broken {
-        return;
-    }
+    let player_attack = player_query.single().ok();
 
-    let Ok((crate_entity, crate_transform)) = crate_query.single() else {
-        return;
-    };
+    for (crate_entity, crate_transform, crate_info) in &crate_query {
+        let mut broken = false;
 
-    let mut broken = false;
+        if let Some((player_transform, facing, has_sword, action_state)) = player_attack
+            && has_sword.0
+            && *action_state == PlayerActionState::Slash
+        {
+            let delta = crate_transform.translation - player_transform.translation;
+            broken = delta.x.abs() <= 120.0 && delta.y.abs() <= 96.0 && delta.x * facing.0 >= 0.0;
+        }
 
-    if let Ok((player_transform, facing, has_sword, action_state)) = player_query.single()
-        && has_sword.0
-        && *action_state == PlayerActionState::Slash
-    {
-        let delta = crate_transform.translation - player_transform.translation;
-        broken = delta.x.abs() <= 120.0 && delta.y.abs() <= 80.0 && delta.x * facing.0 >= 0.0;
-    }
+        if !broken {
+            for (sword_transform, sword_state) in &sword_query {
+                if *sword_state == SwordState::Equipped {
+                    continue;
+                }
 
-    if !broken {
-        for (sword_transform, sword_state) in &sword_query {
-            if *sword_state == SwordState::Equipped {
-                continue;
+                if sword_transform
+                    .translation
+                    .distance(crate_transform.translation)
+                    <= CRATE_BREAK_RADIUS
+                {
+                    broken = true;
+                    break;
+                }
             }
+        }
 
-            if sword_transform
-                .translation
-                .distance(crate_transform.translation)
-                <= 86.0
-            {
-                broken = true;
-                break;
+        if !broken {
+            continue;
+        }
+
+        commands.entity(crate_entity).despawn();
+        spawn_crate_break_effect(&mut commands, &art, crate_transform.translation);
+
+        match crate_info.reward {
+            CrateReward::OpenTrainingDoor => {
+                campaign.crate_broken = true;
+
+                if let Ok(mut door) = door_query.single_mut() {
+                    door.open = true;
+                }
+            }
+            CrateReward::CompleteLevelTwo => {
+                campaign.level_two_goal_complete = true;
             }
         }
     }
-
-    if !broken {
-        return;
-    }
-
-    commands.entity(crate_entity).despawn();
-    campaign.crate_broken = true;
-
-    if let Ok(mut door) = door_query.single_mut() {
-        door.open = true;
-    }
 }
 
-pub(super) fn update_training_door_visual(
+pub(crate) fn update_training_door_visual(
     art: Res<LevelArtHandles>,
     mut query: Query<(&TrainingDoor, &mut Sprite), Changed<TrainingDoor>>,
 ) {
@@ -279,17 +285,7 @@ pub(super) fn update_training_door_visual(
     }
 }
 
-pub(super) fn update_level_two_chest_visual(
-    art: Res<LevelArtHandles>,
-    mut query: Query<(&TrialChest, &mut Sprite), Changed<TrialChest>>,
-) {
-    for (chest, mut sprite) in &mut query {
-        let frame = if chest.open { 2 } else { 0 };
-        *sprite = Sprite::from_image(art.chest_frames[frame].clone());
-    }
-}
-
-pub(super) fn sync_level_two_completion_text(
+pub(crate) fn sync_level_two_completion_text(
     campaign: Res<CampaignState>,
     mut query: Query<&mut Visibility, With<LevelTwoCompletionText>>,
 ) {
@@ -299,7 +295,7 @@ pub(super) fn sync_level_two_completion_text(
 
     for mut visibility in &mut query {
         *visibility =
-            if campaign.current_level == LevelId::LevelTwo && campaign.level_two_chest_open {
+            if campaign.current_level == LevelId::LevelTwo && campaign.level_two_goal_complete {
                 Visibility::Visible
             } else {
                 Visibility::Hidden
@@ -307,37 +303,29 @@ pub(super) fn sync_level_two_completion_text(
     }
 }
 
-pub(super) fn open_level_two_chest(
-    mut campaign: ResMut<CampaignState>,
-    mut chest_query: Query<(&Transform, &mut TrialChest)>,
-    sword_query: Query<(&Transform, &SwordState), With<Sword>>,
+pub(crate) fn update_crate_break_shards(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut shard_query: Query<(Entity, &mut Transform, &mut Sprite, &mut CrateBreakShard)>,
 ) {
-    if campaign.current_level != LevelId::LevelTwo || campaign.level_two_chest_open {
-        return;
-    }
+    for (entity, mut transform, mut sprite, mut shard) in &mut shard_query {
+        shard.timer.tick(time.delta());
+        shard.velocity.y += CRATE_SHARD_GRAVITY * time.delta_secs();
+        transform.translation.x += shard.velocity.x * time.delta_secs();
+        transform.translation.y += shard.velocity.y * time.delta_secs();
+        transform.rotate_z(shard.spin_speed * time.delta_secs());
 
-    let Ok((chest_transform, mut chest)) = chest_query.single_mut() else {
-        return;
-    };
+        let remaining = 1.0
+            - (shard.timer.elapsed_secs() / shard.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
+        sprite.color = Color::srgba(1.0, 1.0, 1.0, remaining);
 
-    for (sword_transform, sword_state) in &sword_query {
-        if *sword_state == SwordState::Equipped {
-            continue;
-        }
-
-        if sword_transform
-            .translation
-            .distance(chest_transform.translation)
-            <= 84.0
-        {
-            chest.open = true;
-            campaign.level_two_chest_open = true;
-            break;
+        if shard.timer.is_finished() {
+            commands.entity(entity).despawn();
         }
     }
 }
 
-pub(super) fn try_advance_level(
+pub(crate) fn try_advance_level(
     campaign: Res<CampaignState>,
     mut pending_transition: ResMut<PendingLevelTransition>,
     player_query: Query<&Transform, With<Player>>,
@@ -362,33 +350,51 @@ pub(super) fn try_advance_level(
     }
 }
 
-pub(super) fn apply_level_transition(
+pub(crate) fn restart_current_level(
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    mut pending_transition: ResMut<PendingLevelTransition>,
     mut campaign: ResMut<CampaignState>,
+    mut dialogue: ResMut<DialogueState>,
+    mut cinematic: ResMut<DialogueCinematicState>,
+    mut sword_aim: ResMut<SwordAimState>,
     art: Res<LevelArtHandles>,
     fonts: Res<GameFonts>,
     player_anims: Res<crate::player::PlayerAnimationHandles>,
     sword_visuals: Res<crate::sword::SwordVisualHandles>,
     profile: Res<PlayerProfile>,
-    level_entities: Query<Entity, With<super::components::LevelEntity>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
+    mut params: ParamSet<(
+        Query<Entity, With<LevelEntity>>,
+        Query<Entity, With<SwordTrail>>,
+        Query<&mut Visibility, With<SwordAimGuide>>,
+        Query<&mut Visibility, With<SwordAimReticle>>,
+    )>,
 ) {
-    let Some(next_level) = pending_transition.next_level.take() else {
+    if !keyboard.just_pressed(KeyCode::KeyR) {
         return;
-    };
+    }
 
-    for entity in &level_entities {
+    for entity in &params.p0() {
         commands.entity(entity).despawn();
     }
 
-    campaign.current_level = next_level;
-    campaign.wizard_intro_seen = false;
-    campaign.wizard_followup_seen = false;
-    campaign.tutorial_hint_seen = false;
-    campaign.crate_broken = false;
-    campaign.level_two_chest_open = false;
+    for entity in &params.p1() {
+        commands.entity(entity).despawn();
+    }
+
+    if let Ok(mut visibility) = params.p2().single_mut() {
+        *visibility = Visibility::Hidden;
+    }
+
+    if let Ok(mut visibility) = params.p3().single_mut() {
+        *visibility = Visibility::Hidden;
+    }
+
+    *dialogue = DialogueState::default();
+    *cinematic = DialogueCinematicState::default();
+    sword_aim.reset();
+    reset_level_progress(&mut campaign);
 
     frame_level_camera(
         &mut camera_query,
@@ -408,6 +414,103 @@ pub(super) fn apply_level_transition(
     );
 }
 
-pub(super) fn wizard_scale() -> f32 {
+pub(crate) fn apply_level_transition(
+    mut commands: Commands,
+    mut pending_transition: ResMut<PendingLevelTransition>,
+    mut campaign: ResMut<CampaignState>,
+    art: Res<LevelArtHandles>,
+    fonts: Res<GameFonts>,
+    player_anims: Res<crate::player::PlayerAnimationHandles>,
+    sword_visuals: Res<crate::sword::SwordVisualHandles>,
+    profile: Res<PlayerProfile>,
+    level_entities: Query<Entity, With<LevelEntity>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
+) {
+    let Some(next_level) = pending_transition.next_level.take() else {
+        return;
+    };
+
+    for entity in &level_entities {
+        commands.entity(entity).despawn();
+    }
+
+    campaign.current_level = next_level;
+    reset_level_progress(&mut campaign);
+
+    frame_level_camera(
+        &mut camera_query,
+        Some(&window_query),
+        Some(level_bounds_for(campaign.current_level)),
+        Some(level_camera_focus_x(campaign.current_level)),
+    );
+
+    spawn_level_scene(
+        &mut commands,
+        &art,
+        &fonts,
+        &player_anims,
+        &sword_visuals,
+        &campaign,
+        &profile,
+    );
+}
+
+pub(crate) fn wizard_scale() -> f32 {
     WIZARD_SCALE
+}
+
+fn spawn_crate_break_effect(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
+    let center = position + Vec3::new(0.0, 42.0, 6.0);
+    let shards = [
+        (
+            Vec2::new(-150.0, 320.0),
+            -6.0,
+            Vec2::new(26.0, 30.0),
+            Vec2::new(-18.0, 18.0),
+        ),
+        (
+            Vec2::new(-70.0, 380.0),
+            -3.5,
+            Vec2::new(22.0, 34.0),
+            Vec2::new(16.0, 22.0),
+        ),
+        (
+            Vec2::new(70.0, 380.0),
+            3.5,
+            Vec2::new(22.0, 34.0),
+            Vec2::new(-16.0, 22.0),
+        ),
+        (
+            Vec2::new(150.0, 320.0),
+            6.0,
+            Vec2::new(26.0, 30.0),
+            Vec2::new(18.0, 18.0),
+        ),
+    ];
+
+    for (velocity, spin_speed, size, offset) in shards {
+        commands.spawn((
+            LevelEntity,
+            Sprite {
+                image: art.crate_texture.clone(),
+                custom_size: Some(size),
+                ..default()
+            },
+            Transform::from_translation(center + offset.extend(0.0)),
+            CrateBreakShard {
+                velocity,
+                spin_speed,
+                timer: Timer::from_seconds(CRATE_SHARD_LIFETIME, TimerMode::Once),
+            },
+        ));
+    }
+}
+
+fn reset_level_progress(campaign: &mut CampaignState) {
+    campaign.wizard_intro_seen = false;
+    campaign.wizard_followup_seen = false;
+    campaign.tutorial_hint_seen = false;
+    campaign.crate_broken = false;
+    campaign.level_two_goal_complete = false;
 }

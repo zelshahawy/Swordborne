@@ -26,7 +26,7 @@ pub struct CampaignState {
     pub wizard_followup_seen: bool,
     pub tutorial_hint_seen: bool,
     pub crate_broken: bool,
-    pub level_two_chest_open: bool,
+    pub level_two_goal_complete: bool,
 }
 
 impl Default for CampaignState {
@@ -37,7 +37,7 @@ impl Default for CampaignState {
             wizard_followup_seen: false,
             tutorial_hint_seen: false,
             crate_broken: false,
-            level_two_chest_open: false,
+            level_two_goal_complete: false,
         }
     }
 }

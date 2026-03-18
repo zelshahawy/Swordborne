@@ -1,10 +1,9 @@
 use bevy::prelude::*;
 
-use crate::state::LevelId;
-
-use super::{
+use crate::level::{
     ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X,
 };
+use crate::state::LevelId;
 
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct LevelBounds {
@@ -28,30 +27,45 @@ impl Default for LevelBounds {
 }
 
 #[derive(Resource, Default)]
-pub(super) struct PendingLevelTransition {
+pub(crate) struct PendingLevelTransition {
     pub next_level: Option<LevelId>,
 }
 
 #[derive(Component)]
-pub(super) struct LevelEntity;
+pub(crate) struct LevelEntity;
 
 #[derive(Component)]
-pub(super) struct WizardNpc;
+pub(crate) struct WizardNpc;
 
 #[derive(Component)]
-pub(super) struct WizardAnimationTimer(pub Timer);
+pub(crate) struct WizardAnimationTimer(pub Timer);
 
 #[derive(Component, Default)]
-pub(super) struct WizardAnimationFrame(pub usize);
+pub(crate) struct WizardAnimationFrame(pub usize);
 
 #[derive(Component)]
-pub(super) struct TutorialMarker;
+pub(crate) struct TutorialMarker;
 
 #[derive(Component)]
-pub(super) struct TrainingCrate;
+pub(crate) struct BreakableCrate {
+    pub reward: CrateReward,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CrateReward {
+    OpenTrainingDoor,
+    CompleteLevelTwo,
+}
 
 #[derive(Component)]
-pub(super) struct TrainingDoor {
+pub(crate) struct CrateBreakShard {
+    pub velocity: Vec2,
+    pub spin_speed: f32,
+    pub timer: Timer,
+}
+
+#[derive(Component)]
+pub(crate) struct TrainingDoor {
     pub open: bool,
 }
 
@@ -61,9 +75,4 @@ pub struct SwordBlocker {
 }
 
 #[derive(Component)]
-pub(super) struct TrialChest {
-    pub open: bool,
-}
-
-#[derive(Component)]
-pub(super) struct LevelTwoCompletionText;
+pub(crate) struct LevelTwoCompletionText;

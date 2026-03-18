@@ -15,6 +15,11 @@ use aim::{
 use logic::{pickup_sword, update_flying_sword, update_sword_trail};
 use spawn::load_sword_visuals;
 
+pub(crate) use logic::{
+    FLYING_SWORD_HALF_SIZE, MAX_STRAIGHT_THROW_DISTANCE, RayHit, THROW_SPEED, raycast_against_aabb,
+    raycast_against_bounds, sword_launch_origin,
+};
+
 pub struct SwordPlugin;
 
 impl Plugin for SwordPlugin {

@@ -3,10 +3,9 @@ use bevy::prelude::*;
 const WIZARD_IDLE_FRAMES: usize = 4;
 const FLOOR_VARIANTS: usize = 8;
 const FOUNTAIN_FRAMES: usize = 3;
-const CHEST_FRAMES: usize = 3;
 
 #[derive(Resource)]
-pub(super) struct LevelArtHandles {
+pub(crate) struct LevelArtHandles {
     pub floor_tiles: [Handle<Image>; FLOOR_VARIANTS],
     pub wall_mid: Handle<Image>,
     pub wall_outer_top_left: Handle<Image>,
@@ -30,11 +29,10 @@ pub(super) struct LevelArtHandles {
     pub door_closed: Handle<Image>,
     pub door_open: Handle<Image>,
     pub tutorial_base: Handle<Image>,
-    pub chest_frames: [Handle<Image>; CHEST_FRAMES],
     pub wizard_idle_frames: [Handle<Image>; WIZARD_IDLE_FRAMES],
 }
 
-pub(super) fn load_level_art(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub(crate) fn load_level_art(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(LevelArtHandles {
         floor_tiles: [
             asset_server.load("dungeon/frames/floor_1.png"),
@@ -76,11 +74,6 @@ pub(super) fn load_level_art(mut commands: Commands, asset_server: Res<AssetServ
         door_closed: asset_server.load("dungeon/frames/doors_leaf_closed.png"),
         door_open: asset_server.load("dungeon/frames/doors_leaf_open.png"),
         tutorial_base: asset_server.load("dungeon/frames/column.png"),
-        chest_frames: [
-            asset_server.load("dungeon/frames/chest_full_open_anim_f0.png"),
-            asset_server.load("dungeon/frames/chest_full_open_anim_f1.png"),
-            asset_server.load("dungeon/frames/chest_full_open_anim_f2.png"),
-        ],
         wizard_idle_frames: [
             asset_server.load("dungeon/frames/wizzard_m_idle_anim_f0.png"),
             asset_server.load("dungeon/frames/wizzard_m_idle_anim_f1.png"),

@@ -5,13 +5,10 @@ use bevy::window::PrimaryWindow;
 use crate::level::{LevelBounds, SwordBlocker};
 use crate::player::{Facing, HasSword, Player, PlayerActionState};
 use crate::sword::{
-    Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordAnimationTimer, SwordFlight,
-    SwordState, SwordVelocity, SwordVisualHandles,
-};
-
-use super::logic::{
-    FLYING_SWORD_HALF_SIZE, MAX_STRAIGHT_THROW_DISTANCE, RayHit, THROW_SPEED, raycast_against_aabb,
-    raycast_against_bounds, sword_launch_origin,
+    FLYING_SWORD_HALF_SIZE, MAX_STRAIGHT_THROW_DISTANCE, RayHit, Sword, SwordAimGuide,
+    SwordAimReticle, SwordAimState, SwordAnimationTimer, SwordFlight, SwordState, SwordVelocity,
+    SwordVisualHandles, THROW_SPEED, raycast_against_aabb, raycast_against_bounds,
+    sword_launch_origin,
 };
 
 const AIM_GUIDE_WIDTH: f32 = 12.0;

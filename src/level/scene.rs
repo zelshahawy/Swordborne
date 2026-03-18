@@ -3,24 +3,21 @@ use bevy::sprite::Anchor;
 use bevy::window::PrimaryWindow;
 
 use crate::fonts::GameFonts;
+use crate::level::{
+    LevelArtHandles, LevelBounds, LevelEntity, ROOM_CEILING_Y, ROOM_TILE_COLUMNS, ROOM_WALL_LEFT_X,
+    ROOM_WALL_RIGHT_X, ROOM_WALL_ROWS, TILE_SCALE, TILE_WORLD_SIZE,
+};
 use crate::player::{GROUND_Y, Player};
 
-use super::assets::LevelArtHandles;
-use super::components::{LevelBounds, LevelEntity};
-use super::{
-    ROOM_CEILING_Y, ROOM_TILE_COLUMNS, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, TILE_SCALE,
-    TILE_WORLD_SIZE,
-};
-
-const LEVEL_CAMERA_Y: f32 = -94.0;
-const LEVEL_CAMERA_SCALE: f32 = 0.56;
+const LEVEL_CAMERA_Y: f32 = 0.0;
+const LEVEL_CAMERA_SCALE: f32 = 0.9;
 const LEVEL_CAMERA_SMOOTHING: f32 = 8.0;
 const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 8.0;
 const BACKGROUND_SIDE_PADDING: isize = 6;
 const BACKGROUND_ROWS_BELOW_GROUND: usize = 7;
 const BACKGROUND_ROWS_ABOVE_CEILING: usize = 4;
 
-pub(super) fn frame_level_camera(
+pub(crate) fn frame_level_camera(
     camera_query: &mut Query<(&mut Transform, &mut Projection), With<Camera2d>>,
     window_query: Option<&Query<&Window, With<PrimaryWindow>>>,
     bounds: Option<LevelBounds>,
@@ -45,7 +42,7 @@ pub(super) fn frame_level_camera(
     };
 }
 
-pub(super) fn update_level_camera(
+pub(crate) fn update_level_camera(
     time: Res<Time>,
     bounds: Res<LevelBounds>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -79,7 +76,7 @@ pub(super) fn update_level_camera(
     camera_transform.translation.y = LEVEL_CAMERA_Y;
 }
 
-pub(super) fn spawn_room_shell(
+pub(crate) fn spawn_room_shell(
     commands: &mut Commands,
     art: &LevelArtHandles,
     fonts: &GameFonts,
@@ -119,8 +116,7 @@ pub(super) fn spawn_room_shell(
 fn spawn_background_tiles(commands: &mut Commands, art: &LevelArtHandles) {
     let start_column = -BACKGROUND_SIDE_PADDING;
     let end_column = ROOM_TILE_COLUMNS as isize + BACKGROUND_SIDE_PADDING;
-    let total_rows =
-        super::ROOM_WALL_ROWS + BACKGROUND_ROWS_BELOW_GROUND + BACKGROUND_ROWS_ABOVE_CEILING;
+    let total_rows = ROOM_WALL_ROWS + BACKGROUND_ROWS_BELOW_GROUND + BACKGROUND_ROWS_ABOVE_CEILING;
     let bottom_y = GROUND_Y - TILE_WORLD_SIZE * (BACKGROUND_ROWS_BELOW_GROUND as f32 - 0.5);
 
     for row in 0..total_rows {
@@ -188,7 +184,7 @@ fn spawn_side_walls(commands: &mut Commands, art: &LevelArtHandles) {
         Vec3::new(ROOM_WALL_RIGHT_X, top_y, 0.0),
     );
 
-    for row in 0..super::ROOM_WALL_ROWS {
+    for row in 0..ROOM_WALL_ROWS {
         let y = GROUND_Y + TILE_WORLD_SIZE * 0.5 + row as f32 * TILE_WORLD_SIZE;
         let left_texture = if row == 0 {
             art.wall_outer_front_left.clone()

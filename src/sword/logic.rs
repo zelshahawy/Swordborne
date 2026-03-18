@@ -11,13 +11,13 @@ use crate::sword::{
 const PICKUP_DISTANCE: f32 = 48.0;
 const STUCK_PICKUP_HORIZONTAL_DISTANCE: f32 = 56.0;
 const STUCK_PICKUP_VERTICAL_DISTANCE: f32 = 96.0;
-pub(super) const THROW_SPEED: f32 = 920.0;
+pub(crate) const THROW_SPEED: f32 = 920.0;
 const SWORD_GRAVITY: f32 = -900.0;
 const SPINNING_SWORD_FRAMES: usize = 4;
-pub(super) const FLYING_SWORD_HALF_SIZE: f32 = 48.0;
+pub(crate) const FLYING_SWORD_HALF_SIZE: f32 = 48.0;
 const THROW_HAND_HORIZONTAL_OFFSET: f32 = 24.0;
 const THROW_HAND_VERTICAL_OFFSET: f32 = 58.0;
-pub(super) const MAX_STRAIGHT_THROW_DISTANCE: f32 = 980.0;
+pub(crate) const MAX_STRAIGHT_THROW_DISTANCE: f32 = 980.0;
 const DROP_HORIZONTAL_DRAG: f32 = 1400.0;
 const DROP_SPIN_RATE: f32 = 10.0;
 const TRAIL_LIFETIME: f32 = 0.18;
@@ -63,7 +63,7 @@ type SwordTrailQuery<'w, 's> =
     Query<'w, 's, (Entity, &'static mut Sprite, &'static mut SwordTrail)>;
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct RayHit {
+pub(crate) struct RayHit {
     pub distance: f32,
     pub point: Vec2,
     pub normal: Vec2,
@@ -204,13 +204,10 @@ pub fn update_flying_sword(
             continue;
         }
 
-        if transform.translation.y >= bounds.ceiling_y {
+        if *sword_state == SwordState::Flying && transform.translation.y >= bounds.ceiling_y {
             transform.translation.y = bounds.ceiling_y;
-            velocity.x = 0.0;
             velocity.y = 0.0;
-            transform.rotation = Quat::from_rotation_z(std::f32::consts::PI);
-            *sword_state = SwordState::Stuck;
-            set_resting_sword_visual(&mut sprite, &mut anchor, &sword_visuals);
+            *sword_state = SwordState::Dropping;
             reset_flight_trail(&mut flight, &transform);
             continue;
         }
@@ -255,7 +252,7 @@ pub fn update_sword_trail(
     }
 }
 
-pub(super) fn sword_launch_origin(player_transform: &Transform, direction: Vec2) -> Vec3 {
+pub(crate) fn sword_launch_origin(player_transform: &Transform, direction: Vec2) -> Vec3 {
     let horizontal_sign = if direction.x.abs() > 0.15 {
         direction.x.signum()
     } else {
@@ -270,7 +267,7 @@ pub(super) fn sword_launch_origin(player_transform: &Transform, direction: Vec2)
         )
 }
 
-pub(super) fn raycast_against_bounds(
+pub(crate) fn raycast_against_bounds(
     origin: Vec2,
     direction: Vec2,
     max_distance: f32,
@@ -322,24 +319,10 @@ pub(super) fn raycast_against_bounds(
             bounds.wall_right_x,
         ),
     );
-    maybe_take_closer_hit(
-        &mut best_hit,
-        plane_hit(
-            origin,
-            direction,
-            max_distance,
-            bounds.ceiling_y,
-            false,
-            Vec2::new(0.0, -1.0),
-            bounds.wall_left_x,
-            bounds.wall_right_x,
-        ),
-    );
-
     best_hit
 }
 
-pub(super) fn raycast_against_aabb(
+pub(crate) fn raycast_against_aabb(
     origin: Vec2,
     direction: Vec2,
     max_distance: f32,

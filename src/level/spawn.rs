@@ -2,26 +2,20 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
 use crate::fonts::GameFonts;
+use crate::level::{
+    BreakableCrate, CrateReward, LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
+    LEVEL_ONE_SWORD_X, LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_TWO_CRATE_X,
+    LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, LEVEL_TWO_PLAYER_START_X, LEVEL_TWO_SHELF_TOP_Y,
+    LevelArtHandles, LevelBounds, LevelEntity, LevelTwoCompletionText, ROOM_CEILING_Y,
+    ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker,
+    TILE_SCALE, TILE_WORLD_SIZE, TrainingDoor, TutorialMarker, WizardAnimationFrame,
+    WizardAnimationTimer, WizardNpc, frame_level_camera, spawn_room_shell, wizard_scale,
+};
 use crate::player::{GROUND_Y, PlayerAnimationHandles, spawn::spawn_player_entity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{SwordState, SwordVisualHandles, spawn::spawn_sword_entity};
 
-use super::assets::LevelArtHandles;
-use super::components::{
-    LevelBounds, LevelEntity, LevelTwoCompletionText, SwordBlocker, TrainingCrate, TrainingDoor,
-    TrialChest, TutorialMarker, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
-};
-use super::logic::wizard_scale;
-use super::scene::{frame_level_camera, spawn_room_shell};
-use super::{
-    LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X, LEVEL_ONE_SWORD_X,
-    LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_TWO_CHEST_X, LEVEL_TWO_CHEST_Y,
-    LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, LEVEL_TWO_PLATFORM_Y, LEVEL_TWO_PLAYER_START_X,
-    ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X,
-    TILE_SCALE, TILE_WORLD_SIZE,
-};
-
-pub(super) fn spawn_current_level(
+pub(crate) fn spawn_current_level(
     mut commands: Commands,
     art: Res<LevelArtHandles>,
     player_anims: Res<PlayerAnimationHandles>,
@@ -50,7 +44,7 @@ pub(super) fn spawn_current_level(
     );
 }
 
-pub(super) fn despawn_level_entities(
+pub(crate) fn despawn_level_entities(
     mut commands: Commands,
     query: Query<Entity, With<LevelEntity>>,
 ) {
@@ -59,7 +53,7 @@ pub(super) fn despawn_level_entities(
     }
 }
 
-pub(super) fn spawn_level_scene(
+pub(crate) fn spawn_level_scene(
     commands: &mut Commands,
     art: &LevelArtHandles,
     fonts: &GameFonts,
@@ -110,7 +104,12 @@ fn spawn_level_one(
         fonts,
         Vec3::new(LEVEL_ONE_TUTORIAL_X, GROUND_Y, 4.0),
     );
-    spawn_training_crate(commands, art, Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y, 4.0));
+    spawn_breakable_crate(
+        commands,
+        art,
+        Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y, 4.0),
+        CrateReward::OpenTrainingDoor,
+    );
     spawn_training_door(
         commands,
         art,
@@ -147,17 +146,18 @@ fn spawn_level_two(
     );
     commands.entity(sword).insert(LevelEntity);
 
-    spawn_level_two_platform(commands, art);
-    spawn_trial_chest(
+    spawn_level_two_target_shelf(commands, art);
+    spawn_breakable_crate(
         commands,
         art,
-        Vec3::new(LEVEL_TWO_CHEST_X, LEVEL_TWO_CHEST_Y, 5.0),
+        Vec3::new(LEVEL_TWO_CRATE_X, LEVEL_TWO_SHELF_TOP_Y, 5.0),
+        CrateReward::CompleteLevelTwo,
     );
 
     commands.spawn((
         LevelEntity,
         Text2d::new(
-            "Left Click to slash.\nHold Right Click to aim the sword.\nRelease to send it into the chest above.",
+            "Left Click to slash.\nHold Right Click to aim the sword.\nRelease to shatter the crate above.",
         ),
         TextFont {
             font: fonts.pixel_regular.clone(),
@@ -193,48 +193,50 @@ fn spawn_level_two(
     ));
 }
 
-fn spawn_level_two_platform(commands: &mut Commands, art: &LevelArtHandles) {
-    let platform_tiles = 3usize;
-    let first_tile_x = LEVEL_TWO_CHEST_X - TILE_WORLD_SIZE;
+fn spawn_level_two_target_shelf(commands: &mut Commands, art: &LevelArtHandles) {
+    let platform_tiles = 2usize;
+    let first_tile_x = LEVEL_TWO_CRATE_X - TILE_WORLD_SIZE * 0.5;
 
     for tile_index in 0..platform_tiles {
         let x = first_tile_x + tile_index as f32 * TILE_WORLD_SIZE;
         spawn_centered_tile(
             commands,
             art.floor_tiles[(tile_index + 1) % art.floor_tiles.len()].clone(),
-            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - TILE_WORLD_SIZE * 0.5, 1.5),
+            Vec3::new(x, LEVEL_TWO_SHELF_TOP_Y - TILE_WORLD_SIZE * 0.5, 1.5),
         );
         spawn_centered_tile(
             commands,
             art.edge_down.clone(),
-            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - TILE_WORLD_SIZE * 1.5, 1.4),
+            Vec3::new(x, LEVEL_TWO_SHELF_TOP_Y - TILE_WORLD_SIZE * 1.5, 1.4),
         );
     }
 
-    for x in [LEVEL_TWO_CHEST_X - 98.0, LEVEL_TWO_CHEST_X + 98.0] {
+    for x in [LEVEL_TWO_CRATE_X - 66.0, LEVEL_TWO_CRATE_X + 66.0] {
         spawn_bottom_anchored_sprite(
             commands,
             art.column_wall.clone(),
-            Vec3::new(x, LEVEL_TWO_PLATFORM_Y - 64.0, 1.6),
+            Vec3::new(x, LEVEL_TWO_SHELF_TOP_Y - 64.0, 1.6),
             TILE_SCALE,
         );
     }
 
     spawn_sword_blocker(
         commands,
-        Vec2::new(LEVEL_TWO_CHEST_X, LEVEL_TWO_PLATFORM_Y - 32.0),
-        Vec2::new(112.0, 32.0),
+        Vec2::new(LEVEL_TWO_CRATE_X, LEVEL_TWO_SHELF_TOP_Y - 32.0),
+        Vec2::new(80.0, 32.0),
     );
 }
 
-fn spawn_trial_chest(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
+fn spawn_breakable_crate(
+    commands: &mut Commands,
+    art: &LevelArtHandles,
+    position: Vec3,
+    reward: CrateReward,
+) {
     commands.spawn((
         LevelEntity,
-        TrialChest { open: false },
-        SwordBlocker {
-            half_extents: Vec2::new(24.0, 24.0),
-        },
-        Sprite::from_image(art.chest_frames[0].clone()),
+        BreakableCrate { reward },
+        Sprite::from_image(art.crate_texture.clone()),
         Anchor::BOTTOM_CENTER,
         Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
     ));
@@ -277,16 +279,6 @@ fn spawn_tutorial_marker(
         },
         TextColor(Color::srgb(0.99, 0.86, 0.34)),
         Transform::from_xyz(position.x, position.y + 120.0, position.z + 1.0),
-    ));
-}
-
-fn spawn_training_crate(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
-    commands.spawn((
-        LevelEntity,
-        TrainingCrate,
-        Sprite::from_image(art.crate_texture.clone()),
-        Anchor::BOTTOM_CENTER,
-        Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
     ));
 }
 
@@ -348,7 +340,7 @@ fn spawn_sword_blocker(commands: &mut Commands, center: Vec2, half_extents: Vec2
     ));
 }
 
-pub(super) fn level_bounds_for(level: LevelId) -> LevelBounds {
+pub(crate) fn level_bounds_for(level: LevelId) -> LevelBounds {
     match level {
         LevelId::LevelOne => LevelBounds {
             wall_left_x: ROOM_WALL_LEFT_X,
@@ -367,7 +359,7 @@ pub(super) fn level_bounds_for(level: LevelId) -> LevelBounds {
     }
 }
 
-pub(super) fn level_camera_focus_x(level: LevelId) -> f32 {
+pub(crate) fn level_camera_focus_x(level: LevelId) -> f32 {
     match level {
         LevelId::LevelOne => LEVEL_ONE_PLAYER_START_X,
         LevelId::LevelTwo => LEVEL_TWO_PLAYER_START_X,
