@@ -90,11 +90,39 @@ pub enum LevelId {
     LevelTwo,
     LevelThree,
     LevelFour,
+    LevelFive,
 }
 
 #[derive(Resource, Default)]
 pub struct PlayerProfile {
     pub name: String,
+}
+
+#[derive(Resource)]
+pub struct PlayerHealth {
+    pub current: i32,
+    pub invincibility_timer: f32,
+}
+
+impl Default for PlayerHealth {
+    fn default() -> Self {
+        Self { current: 3, invincibility_timer: 0.0 }
+    }
+}
+
+#[derive(Default, Clone, Copy, PartialEq)]
+pub enum FadePhase {
+    #[default]
+    Idle,
+    FadeOut(f32),
+    FadeIn(f32),
+}
+
+#[derive(Resource, Default)]
+pub struct FadeState {
+    pub phase: FadePhase,
+    pub trigger_restart: bool,
+    pub execute_restart: bool,
 }
 
 #[derive(Resource)]

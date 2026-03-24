@@ -10,7 +10,7 @@ use crate::level::{
     frame_level_camera, level_bounds_for, level_camera_focus_x, spawn_level_scene,
 };
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
-use crate::state::{CampaignState, LevelId, PlayerProfile};
+use crate::state::{CampaignState, FadePhase, FadeState, LevelId, PlayerHealth, PlayerProfile};
 use crate::sword::{Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordState, SwordTrail};
 
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
@@ -58,6 +58,7 @@ pub(crate) fn constrain_player_to_level(
     let level_has_door = matches!(
         campaign.current_level,
         LevelId::LevelOne | LevelId::LevelTwo | LevelId::LevelThree | LevelId::LevelFour
+        // LevelFive has no exit door — boss room ends on defeat
     );
     if level_has_door
         && let Ok((door_transform, door)) = door_query.single()
@@ -300,7 +301,8 @@ pub(crate) fn try_advance_level(
         LevelId::LevelOne => LevelId::LevelTwo,
         LevelId::LevelTwo => LevelId::LevelThree,
         LevelId::LevelThree => LevelId::LevelFour,
-        LevelId::LevelFour => return, // final level — no advance
+        LevelId::LevelFour => LevelId::LevelFive,
+        LevelId::LevelFive => return,
     };
 
     let Ok(player_transform) = player_query.single() else {
@@ -317,6 +319,8 @@ pub(crate) fn try_advance_level(
 
 pub(crate) fn restart_current_level(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut fade_state: ResMut<FadeState>,
+    mut player_health: ResMut<PlayerHealth>,
     mut commands: Commands,
     mut campaign: ResMut<CampaignState>,
     mut dialogue: ResMut<DialogueState>,
@@ -336,9 +340,16 @@ pub(crate) fn restart_current_level(
         Query<&mut Visibility, With<SwordAimReticle>>,
     )>,
 ) {
-    if !keyboard.just_pressed(KeyCode::KeyR) {
+    if keyboard.just_pressed(KeyCode::KeyR) && fade_state.phase == FadePhase::Idle {
+        fade_state.phase = FadePhase::FadeOut(0.0);
+        fade_state.trigger_restart = true;
         return;
     }
+
+    if !fade_state.execute_restart {
+        return;
+    }
+    fade_state.execute_restart = false;
 
     for entity in &params.p0() {
         commands.entity(entity).despawn();
@@ -360,6 +371,7 @@ pub(crate) fn restart_current_level(
     *cinematic = DialogueCinematicState::default();
     sword_aim.reset();
     reset_level_progress(&mut campaign);
+    *player_health = PlayerHealth::default();
 
     frame_level_camera(
         &mut camera_query,
@@ -511,7 +523,7 @@ fn reset_level_progress(campaign: &mut CampaignState) {
     campaign.level_two_goal_complete = false;
     campaign.puzzle_sequence = match campaign.current_level {
         LevelId::LevelFour => crate::state::level_four_sequence(),
-        _ => crate::state::random_puzzle_sequence(),
+        _ => crate::state::random_puzzle_sequence(), // LevelFive uses no puzzle
     };
     campaign.puzzle_progress = 0;
 }

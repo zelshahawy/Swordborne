@@ -76,7 +76,8 @@ pub(crate) const LEVEL_FOUR_BLUE_B_X: f32 = 530.0;  // ground, far right
 pub(crate) const LEVEL_FOUR_RED_A_X: f32 = -240.0;  // elevated left platform
 pub(crate) const LEVEL_FOUR_GREEN_X: f32 = 0.0;     // elevated center platform
 pub(crate) const LEVEL_FOUR_RED_B_X: f32 = 240.0;   // elevated right platform
-/// Y of the top surface of every Level 4 raised platform.
+pub(crate) const LEVEL_FIVE_PLAYER_START_X: f32 = -580.0;
+pub(crate) const LEVEL_FIVE_BOSS_START_X: f32 = 380.0;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {

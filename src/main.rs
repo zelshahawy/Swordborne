@@ -1,20 +1,24 @@
 use bevy::prelude::*;
 
+mod boss;
 mod combat;
 mod dialogue;
 mod fonts;
 mod level;
 mod menu;
+mod pause;
 mod player;
 mod puzzle;
 mod state;
 mod sword;
 
+use boss::BossPlugin;
 use combat::CombatPlugin;
 use dialogue::DialoguePlugin;
 use fonts::FontPlugin;
 use level::LevelPlugin;
 use menu::MenuPlugin;
+use pause::PausePlugin;
 use player::PlayerPlugin;
 use puzzle::PuzzlePlugin;
 use state::GameState;
@@ -42,6 +46,8 @@ fn main() {
             CombatPlugin,
             LevelPlugin,
             PuzzlePlugin,
+            BossPlugin,
+            PausePlugin,
         ))
         .run();
 }

@@ -1,9 +1,14 @@
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
+use crate::boss::{
+    Boss, BossAnimationFrame, BossAnimationTimer, BossDefeatedText, BossHp, BossInvincible,
+    BossPhase, BOSS_MAX_HP, spawn_boss_hp_bar, spawn_player_hp_ui,
+};
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableCrate, CrateReward, LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
+    BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X, LEVEL_FIVE_PLAYER_START_X,
+    LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
     LEVEL_FOUR_GREEN_X, LEVEL_FOUR_PLAYER_START_X, LEVEL_FOUR_RED_A_X, LEVEL_FOUR_RED_B_X,
     LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
     LEVEL_ONE_SWORD_X, LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_THREE_BLUE_X,
@@ -79,6 +84,9 @@ pub(crate) fn spawn_level_scene(
         }
         LevelId::LevelFour => {
             spawn_level_four(commands, art, fonts, player_anims, sword_visuals, campaign, profile)
+        }
+        LevelId::LevelFive => {
+            spawn_level_five(commands, art, fonts, player_anims, sword_visuals, profile)
         }
     }
 }
@@ -589,7 +597,9 @@ pub(crate) fn level_bounds_for(level: LevelId) -> LevelBounds {
             player_left_x: LEVEL_ONE_PLAYER_START_X,
             ..standard
         },
-        LevelId::LevelTwo | LevelId::LevelThree | LevelId::LevelFour => standard,
+        LevelId::LevelTwo | LevelId::LevelThree | LevelId::LevelFour | LevelId::LevelFive => {
+            standard
+        }
     }
 }
 
@@ -599,5 +609,135 @@ pub(crate) fn level_camera_focus_x(level: LevelId) -> f32 {
         LevelId::LevelTwo => LEVEL_TWO_PLAYER_START_X,
         LevelId::LevelThree => LEVEL_THREE_PLAYER_START_X,
         LevelId::LevelFour => LEVEL_FOUR_PLAYER_START_X,
+        LevelId::LevelFive => LEVEL_FIVE_PLAYER_START_X,
     }
+}
+
+fn spawn_level_five(
+    commands: &mut Commands,
+    art: &LevelArtHandles,
+    fonts: &GameFonts,
+    player_anims: &PlayerAnimationHandles,
+    sword_visuals: &SwordVisualHandles,
+    profile: &PlayerProfile,
+) {
+    commands.insert_resource(level_bounds_for(LevelId::LevelFive));
+
+    spawn_room_shell(commands, art, fonts, "THE WIZARD'S LAIR");
+
+    // Blood-red atmosphere overlay
+    commands.spawn((
+        LevelEntity,
+        Sprite::from_color(Color::srgba(0.35, 0.0, 0.0, 0.18), Vec2::new(2800.0, 1800.0)),
+        Transform::from_xyz(0.0, 0.0, -37.0),
+    ));
+    // Dark crimson ground fog
+    commands.spawn((
+        LevelEntity,
+        Sprite::from_color(Color::srgba(0.5, 0.0, 0.0, 0.12), Vec2::new(2800.0, 180.0)),
+        Transform::from_xyz(0.0, GROUND_Y + 90.0, -20.0),
+    ));
+
+    let player = spawn_player_entity(
+        commands,
+        player_anims,
+        Vec3::new(LEVEL_FIVE_PLAYER_START_X, GROUND_Y, 5.0),
+        true,
+    );
+    commands.entity(player).insert(LevelEntity);
+
+    let sword = spawn_sword_entity(
+        commands,
+        sword_visuals,
+        Vec3::new(LEVEL_FIVE_PLAYER_START_X, GROUND_Y, 4.0),
+        SwordState::Equipped,
+    );
+    commands.entity(sword).insert(LevelEntity);
+
+    commands.spawn((
+        LevelEntity,
+        Boss,
+        BossHp { current: BOSS_MAX_HP, max: BOSS_MAX_HP },
+        BossPhase::Chase,
+        BossInvincible(0.0),
+        BossAnimationFrame::default(),
+        BossAnimationTimer(Timer::from_seconds(0.14, TimerMode::Repeating)),
+        Sprite {
+            image: art.wizard_idle_frames[0].clone(),
+            color: Color::srgb(1.0, 0.28, 0.28),
+            ..default()
+        },
+        Anchor::BOTTOM_CENTER,
+        Transform::from_xyz(LEVEL_FIVE_BOSS_START_X, GROUND_Y + 80.0, 4.0)
+            .with_scale(Vec3::splat(WIZARD_SCALE)),
+    ));
+
+    spawn_boss_hp_bar(commands, fonts);
+    spawn_player_hp_ui(commands, fonts);
+
+    // Menacing dressing – red banners along ceiling, dense skull placement, extra columns
+    for x in [-600.0, -320.0, 0.0, 320.0, 600.0] {
+        spawn_bottom_anchored_sprite(
+            commands,
+            art.banner_red.clone(),
+            Vec3::new(x, ROOM_CEILING_Y + 114.0, 1.5),
+            TILE_SCALE,
+        );
+    }
+
+    for x in [-680.0, -540.0, -380.0, -180.0, 80.0, 300.0, 500.0, 680.0] {
+        spawn_bottom_anchored_sprite(
+            commands,
+            art.skull.clone(),
+            Vec3::new(x, GROUND_Y, 4.0),
+            TILE_SCALE,
+        );
+    }
+
+    // Extra columns flanking the arena
+    for x in [-200.0, 200.0] {
+        spawn_bottom_anchored_sprite(
+            commands,
+            art.column_wall.clone(),
+            Vec3::new(x, GROUND_Y, 2.0),
+            TILE_SCALE,
+        );
+    }
+
+    // Wall holes – more damage than normal rooms
+    for (x, texture) in [
+        (-500.0, art.wall_hole_1.clone()),
+        (-300.0, art.wall_hole_2.clone()),
+        (300.0, art.wall_hole_1.clone()),
+        (500.0, art.wall_hole_2.clone()),
+    ] {
+        spawn_centered_tile(
+            commands,
+            texture,
+            Vec3::new(x, GROUND_Y + TILE_WORLD_SIZE * 2.5, -8.0),
+        );
+    }
+
+    commands.spawn((
+        LevelEntity,
+        Text2d::new("Only the thrown blade can pierce his dark magic."),
+        TextFont { font: fonts.pixel_bold.clone(), font_size: 15.0, ..default() },
+        TextColor(Color::srgb(0.92, 0.55, 0.55)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(0.0, GROUND_Y + 220.0, 5.0),
+    ));
+
+    let knight_name = if profile.name.is_empty() { "Knight" } else { profile.name.as_str() };
+    commands.spawn((
+        LevelEntity,
+        BossDefeatedText,
+        Visibility::Hidden,
+        Text2d::new(format!(
+            "The Dark Wizard falls.\n{knight_name}, your internship is confirmed."
+        )),
+        TextFont { font: fonts.pixel_regular.clone(), font_size: 16.0, ..default() },
+        TextColor(Color::srgb(1.0, 0.85, 0.3)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(0.0, GROUND_Y + 160.0, 8.0),
+    ));
 }
