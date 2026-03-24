@@ -8,6 +8,26 @@ pub struct DialoguePlugin;
 const DIALOGUE_ZOOM_IN_DURATION: f32 = 0.35;
 const DIALOGUE_ZOOM_OUT_DURATION: f32 = 0.28;
 const DIALOGUE_TARGET_SCALE: f32 = 0.78;
+const PORTRAIT_PANEL_WIDTH: f32 = 180.0;
+const PORTRAIT_SIZE: f32 = 148.0;
+const BOX_HEIGHT: f32 = 210.0;
+
+#[derive(Resource)]
+pub struct DialoguePortraits {
+    pub wizard: Handle<Image>,
+    #[allow(dead_code)]
+    pub knight: Handle<Image>,
+}
+
+impl FromWorld for DialoguePortraits {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.resource::<AssetServer>().clone();
+        Self {
+            wizard: asset_server.load("dungeon/frames/wizzard_m_idle_anim_f0.png"),
+            knight: asset_server.load("dungeon/frames/knight_m_idle_anim_f0.png"),
+        }
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct DialogueState {
@@ -15,6 +35,7 @@ pub struct DialogueState {
     pub speaker: String,
     pub lines: Vec<String>,
     pub index: usize,
+    pub portrait: Option<Handle<Image>>,
 }
 
 #[derive(Resource, Default)]
@@ -23,6 +44,7 @@ pub struct DialogueCinematicState {
     timer: Timer,
     speaker: String,
     lines: Vec<String>,
+    portrait: Option<Handle<Image>>,
     focus: Vec3,
     base_scale: f32,
     target_scale: f32,
@@ -52,10 +74,14 @@ struct DialogueBodyText;
 #[derive(Component)]
 struct DialogueHintText;
 
+#[derive(Component)]
+struct DialoguePortraitImage;
+
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DialogueState>()
             .init_resource::<DialogueCinematicState>()
+            .init_resource::<DialoguePortraits>()
             .add_systems(OnEnter(GameState::InGame), spawn_dialogue_ui)
             .add_systems(OnExit(GameState::InGame), despawn_dialogue_ui)
             .add_systems(
@@ -82,14 +108,19 @@ pub fn gameplay_unlocked(
     !dialogue_active && !cinematic_active
 }
 
-pub fn start_dialogue<I, S>(dialogue: &mut DialogueState, speaker: impl Into<String>, lines: I)
-where
+pub fn start_dialogue<I, S>(
+    dialogue: &mut DialogueState,
+    speaker: impl Into<String>,
+    lines: I,
+    portrait: Option<Handle<Image>>,
+) where
     I: IntoIterator<Item = S>,
     S: Into<String>,
 {
     dialogue.active = true;
     dialogue.speaker = speaker.into();
     dialogue.lines = lines.into_iter().map(Into::into).collect();
+    dialogue.portrait = portrait;
     dialogue.index = 0;
 }
 
@@ -98,6 +129,7 @@ pub fn queue_dialogue<I, S>(
     speaker: impl Into<String>,
     lines: I,
     focus: Vec3,
+    portrait: Option<Handle<Image>>,
 ) where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -110,6 +142,7 @@ pub fn queue_dialogue<I, S>(
     cinematic.timer = Timer::from_seconds(DIALOGUE_ZOOM_IN_DURATION, TimerMode::Once);
     cinematic.speaker = speaker.into();
     cinematic.lines = lines.into_iter().map(Into::into).collect();
+    cinematic.portrait = portrait;
     cinematic.focus = focus;
     cinematic.target_scale = DIALOGUE_TARGET_SCALE;
     cinematic.camera_captured = false;
@@ -122,52 +155,86 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
             Visibility::Hidden,
             Node {
                 position_type: PositionType::Absolute,
-                left: px(40.0),
-                right: px(40.0),
-                bottom: px(32.0),
-                min_height: px(180.0),
-                padding: UiRect::axes(px(28.0), px(18.0)),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(10.0),
-                border: UiRect::all(px(3.0)),
+                left: Val::Px(0.0),
+                right: Val::Px(0.0),
+                bottom: Val::Px(0.0),
+                height: Val::Px(BOX_HEIGHT),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Stretch,
+                border: UiRect::top(Val::Px(3.0)),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.05, 0.07, 0.12, 0.92)),
+            BackgroundColor(Color::srgba(0.04, 0.05, 0.10, 0.95)),
             BorderColor::all(Color::srgb(0.82, 0.72, 0.44)),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                DialogueSpeakerText,
-                Text::new(""),
-                TextFont {
-                    font: fonts.pixel_bold.clone(),
-                    font_size: 18.0,
+        .with_children(|root| {
+            // Portrait panel on the left
+            root.spawn((
+                Node {
+                    width: Val::Px(PORTRAIT_PANEL_WIDTH),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    border: UiRect::right(Val::Px(3.0)),
                     ..default()
                 },
-                TextColor(Color::srgb(0.97, 0.86, 0.58)),
-            ));
+                BackgroundColor(Color::srgba(0.02, 0.03, 0.08, 0.98)),
+                BorderColor::all(Color::srgb(0.82, 0.72, 0.44)),
+            ))
+            .with_children(|panel| {
+                panel.spawn((
+                    DialoguePortraitImage,
+                    Visibility::Hidden,
+                    Node {
+                        width: Val::Px(PORTRAIT_SIZE),
+                        height: Val::Px(PORTRAIT_SIZE),
+                        ..default()
+                    },
+                    ImageNode::default(),
+                ));
+            });
 
-            parent.spawn((
-                DialogueBodyText,
-                Text::new(""),
-                TextFont {
-                    font: fonts.pixel_regular.clone(),
-                    font_size: 13.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.94, 0.95, 0.98)),
-            ));
+            // Text panel on the right
+            root.spawn((Node {
+                flex_grow: 1.0,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                padding: UiRect::axes(Val::Px(32.0), Val::Px(20.0)),
+                ..default()
+            },))
+            .with_children(|text| {
+                text.spawn((
+                    DialogueSpeakerText,
+                    Text::new(""),
+                    TextFont {
+                        font: fonts.pixel_bold.clone(),
+                        font_size: 22.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.97, 0.86, 0.58)),
+                ));
 
-            parent.spawn((
-                DialogueHintText,
-                Text::new("Press Space, Enter, or E to continue"),
-                TextFont {
-                    font: fonts.pixel_regular.clone(),
-                    font_size: 10.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.67, 0.75, 0.9)),
-            ));
+                text.spawn((
+                    DialogueBodyText,
+                    Text::new(""),
+                    TextFont {
+                        font: fonts.pixel_regular.clone(),
+                        font_size: 17.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.94, 0.95, 0.98)),
+                ));
+
+                text.spawn((
+                    DialogueHintText,
+                    Text::new("[ Space / Enter / E ] to continue"),
+                    TextFont {
+                        font: fonts.pixel_regular.clone(),
+                        font_size: 11.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.55, 0.64, 0.80)),
+                ));
+            });
         });
 }
 
@@ -179,9 +246,16 @@ fn despawn_dialogue_ui(mut commands: Commands, query: Query<Entity, With<Dialogu
 
 fn sync_dialogue_ui(
     dialogue: Res<DialogueState>,
-    mut root_query: Query<&mut Visibility, With<DialogueUiRoot>>,
+    mut root_query: Query<
+        &mut Visibility,
+        (With<DialogueUiRoot>, Without<DialoguePortraitImage>),
+    >,
     mut speaker_query: Query<&mut Text, (With<DialogueSpeakerText>, Without<DialogueBodyText>)>,
     mut body_query: Query<&mut Text, (With<DialogueBodyText>, Without<DialogueSpeakerText>)>,
+    mut portrait_query: Query<
+        (&mut ImageNode, &mut Visibility),
+        (With<DialoguePortraitImage>, Without<DialogueUiRoot>),
+    >,
 ) {
     let Ok(mut visibility) = root_query.single_mut() else {
         return;
@@ -203,6 +277,15 @@ fn sync_dialogue_ui(
     *visibility = Visibility::Visible;
     **speaker_text = dialogue.speaker.clone();
     **body_text = dialogue.lines[dialogue.index].clone();
+
+    if let Ok((mut image_node, mut portrait_vis)) = portrait_query.single_mut() {
+        if let Some(handle) = &dialogue.portrait {
+            image_node.image = handle.clone();
+            *portrait_vis = Visibility::Visible;
+        } else {
+            *portrait_vis = Visibility::Hidden;
+        }
+    }
 }
 
 fn advance_dialogue(keyboard: Res<ButtonInput<KeyCode>>, mut dialogue: ResMut<DialogueState>) {
@@ -272,6 +355,7 @@ fn run_dialogue_cinematic(
                     &mut dialogue,
                     cinematic.speaker.clone(),
                     cinematic.lines.clone(),
+                    cinematic.portrait.clone(),
                 );
                 cinematic.phase = DialogueCinematicPhase::Dialogue;
             }
@@ -299,6 +383,7 @@ fn run_dialogue_cinematic(
                 cinematic.phase = DialogueCinematicPhase::Idle;
                 cinematic.speaker.clear();
                 cinematic.lines.clear();
+                cinematic.portrait = None;
                 cinematic.focus = Vec3::ZERO;
                 cinematic.camera_captured = false;
             }

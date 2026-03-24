@@ -6,6 +6,7 @@ mod fonts;
 mod level;
 mod menu;
 mod player;
+mod puzzle;
 mod state;
 mod sword;
 
@@ -15,6 +16,7 @@ use fonts::FontPlugin;
 use level::LevelPlugin;
 use menu::MenuPlugin;
 use player::PlayerPlugin;
+use puzzle::PuzzlePlugin;
 use state::GameState;
 use sword::SwordPlugin;
 
@@ -39,6 +41,7 @@ fn main() {
             SwordPlugin,
             CombatPlugin,
             LevelPlugin,
+            PuzzlePlugin,
         ))
         .run();
 }

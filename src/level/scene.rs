@@ -233,6 +233,18 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
             TILE_SCALE,
         );
     }
+
+    // Wall holes for dungeon atmosphere
+    for (x, texture) in [
+        (-150.0, art.wall_hole_1.clone()),
+        (150.0, art.wall_hole_2.clone()),
+    ] {
+        spawn_centered_tile(
+            commands,
+            texture,
+            Vec3::new(x, GROUND_Y + 100.0, -10.0),
+        );
+    }
 }
 
 fn spawn_level_label(commands: &mut Commands, fonts: &GameFonts, level_label: &str) {
@@ -258,17 +270,22 @@ fn spawn_level_label(commands: &mut Commands, fonts: &GameFonts, level_label: &s
 fn spawn_fountain(commands: &mut Commands, art: &LevelArtHandles, x: f32) {
     spawn_centered_tile(
         commands,
-        art.fountain_top_frames[1].clone(),
+        art.fountain_top_frames[0].clone(),
+        Vec3::new(x, GROUND_Y + 240.0, 0.5),
+    );
+    spawn_centered_tile(
+        commands,
+        art.fountain_mid_blue_frames[0].clone(),
         Vec3::new(x, GROUND_Y + 176.0, 0.5),
     );
     spawn_centered_tile(
         commands,
-        art.fountain_blue_frames[1].clone(),
+        art.fountain_blue_frames[0].clone(),
         Vec3::new(x, GROUND_Y + 112.0, 0.6),
     );
 }
 
-fn spawn_centered_tile(commands: &mut Commands, texture: Handle<Image>, position: Vec3) {
+pub(crate) fn spawn_centered_tile(commands: &mut Commands, texture: Handle<Image>, position: Vec3) {
     commands.spawn((
         LevelEntity,
         Sprite::from_image(texture),
@@ -276,7 +293,7 @@ fn spawn_centered_tile(commands: &mut Commands, texture: Handle<Image>, position
     ));
 }
 
-fn spawn_bottom_anchored_sprite(
+pub(crate) fn spawn_bottom_anchored_sprite(
     commands: &mut Commands,
     texture: Handle<Image>,
     position: Vec3,

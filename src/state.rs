@@ -12,6 +12,7 @@ pub enum LevelId {
     #[default]
     LevelOne,
     LevelTwo,
+    LevelThree,
 }
 
 #[derive(Resource, Default)]
@@ -27,6 +28,7 @@ pub struct CampaignState {
     pub tutorial_hint_seen: bool,
     pub crate_broken: bool,
     pub level_two_goal_complete: bool,
+    pub puzzle_progress: usize,
 }
 
 impl Default for CampaignState {
@@ -38,6 +40,7 @@ impl Default for CampaignState {
             tutorial_hint_seen: false,
             crate_broken: false,
             level_two_goal_complete: false,
+            puzzle_progress: 0,
         }
     }
 }

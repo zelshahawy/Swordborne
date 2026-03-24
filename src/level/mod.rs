@@ -12,17 +12,20 @@ mod spawn;
 
 pub(crate) use assets::{LevelArtHandles, load_level_art};
 pub(crate) use components::{
-    BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity, LevelTwoCompletionText,
-    PendingLevelTransition, SwordBlocker, TrainingDoor, TutorialMarker, WizardAnimationFrame,
-    WizardAnimationTimer, WizardNpc,
+    BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity,
+    LevelThreeCompletionText, LevelTwoCompletionText, PendingLevelTransition, SwordBlocker,
+    TrainingDoor, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
 };
 pub(crate) use logic::{
     animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
-    restart_current_level, sync_level_two_completion_text, trigger_tutorial_hint,
-    trigger_wizard_followup, trigger_wizard_intro, try_advance_level, update_crate_break_shards,
-    update_training_door_visual, wizard_scale,
+    restart_current_level, sync_level_three_completion_text, sync_level_two_completion_text,
+    sync_level_two_door, trigger_wizard_followup, trigger_wizard_intro,
+    try_advance_level, update_crate_break_shards, update_training_door_visual,
 };
-pub(crate) use scene::{frame_level_camera, spawn_room_shell, update_level_camera};
+pub(crate) use scene::{
+    frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile, spawn_room_shell,
+    update_level_camera,
+};
 pub(crate) use spawn::{
     despawn_level_entities, level_bounds_for, level_camera_focus_x, spawn_current_level,
     spawn_level_scene,
@@ -31,6 +34,7 @@ pub(crate) use spawn::{
 pub struct LevelPlugin;
 
 pub(crate) const TILE_SCALE: f32 = 4.0;
+pub(crate) const WIZARD_SCALE: f32 = 4.0;
 pub(crate) const TILE_WORLD_SIZE: f32 = 64.0;
 pub(crate) const ROOM_TILE_COLUMNS: usize = 24;
 pub(crate) const ROOM_WALL_ROWS: usize = 8;
@@ -50,6 +54,15 @@ pub(crate) const LEVEL_TWO_CRATE_X: f32 = 0.0;
 pub(crate) const LEVEL_TWO_SHELF_TOP_Y: f32 = GROUND_Y + 208.0;
 pub(crate) const LEVEL_TWO_HINT_X: f32 = 0.0;
 pub(crate) const LEVEL_TWO_HINT_Y: f32 = GROUND_Y + 118.0;
+pub(crate) const LEVEL_TWO_DOOR_X: f32 = 650.0;
+
+// Level 3 – sequence puzzle
+pub(crate) const LEVEL_THREE_PLAYER_START_X: f32 = -620.0;
+pub(crate) const LEVEL_THREE_DOOR_X: f32 = 650.0;
+// Block positions (sequence shown on-screen is Green → Red → Blue)
+pub(crate) const LEVEL_THREE_GREEN_X: f32 = 300.0;
+pub(crate) const LEVEL_THREE_RED_X: f32 = -100.0;
+pub(crate) const LEVEL_THREE_BLUE_X: f32 = -450.0;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
@@ -74,7 +87,9 @@ impl Plugin for LevelPlugin {
             )
             .add_systems(
                 Update,
-                apply_level_transition.run_if(in_state(GameState::InGame)),
+                apply_level_transition
+                    .after(try_advance_level)
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
@@ -86,10 +101,11 @@ impl Plugin for LevelPlugin {
                     constrain_player_to_level,
                     trigger_wizard_intro,
                     trigger_wizard_followup,
-                    trigger_tutorial_hint,
                     break_crates,
                     update_training_door_visual,
+                    sync_level_two_door,
                     sync_level_two_completion_text,
+                    sync_level_three_completion_text,
                     try_advance_level,
                 )
                     .run_if(in_state(GameState::InGame))

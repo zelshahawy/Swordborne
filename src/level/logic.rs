@@ -1,19 +1,18 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::dialogue::{DialogueCinematicState, DialogueState, queue_dialogue};
+use crate::dialogue::{DialogueCinematicState, DialoguePortraits, DialogueState, queue_dialogue};
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableCrate, CrateBreakShard, CrateReward, LEVEL_ONE_DOOR_X, LevelArtHandles, LevelBounds,
-    LevelEntity, LevelTwoCompletionText, PendingLevelTransition, TrainingDoor, TutorialMarker,
-    WizardAnimationFrame, WizardAnimationTimer, WizardNpc, frame_level_camera, level_bounds_for,
-    level_camera_focus_x, spawn_level_scene,
+    BreakableCrate, CrateBreakShard, CrateReward, LevelArtHandles, LevelBounds, LevelEntity,
+    LevelThreeCompletionText, LevelTwoCompletionText, PendingLevelTransition, TrainingDoor,
+    WizardAnimationFrame, WizardAnimationTimer, WizardNpc, frame_level_camera,
+    level_bounds_for, level_camera_focus_x, spawn_level_scene,
 };
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordState, SwordTrail};
 
-const WIZARD_SCALE: f32 = 4.0;
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
 const CRATE_BREAK_RADIUS: f32 = 86.0;
 const CRATE_SHARD_LIFETIME: f32 = 0.42;
@@ -55,7 +54,12 @@ pub(crate) fn constrain_player_to_level(
     let min_x = bounds.player_left_x;
     let mut max_x = bounds.player_right_x;
 
-    if campaign.current_level == LevelId::LevelOne
+    // Block the player at a closed door in levels that have one.
+    let level_has_door = matches!(
+        campaign.current_level,
+        LevelId::LevelOne | LevelId::LevelTwo | LevelId::LevelThree
+    );
+    if level_has_door
         && let Ok((door_transform, door)) = door_query.single()
         && !door.open
     {
@@ -78,6 +82,7 @@ pub(crate) fn trigger_wizard_intro(
     dialogue: Res<DialogueState>,
     mut cinematic: ResMut<DialogueCinematicState>,
     player_profile: Res<PlayerProfile>,
+    portraits: Res<DialoguePortraits>,
     player_query: Query<&Transform, With<Player>>,
     wizard_query: Query<&Transform, With<WizardNpc>>,
 ) {
@@ -123,6 +128,7 @@ pub(crate) fn trigger_wizard_intro(
                 .to_string(),
         ],
         wizard_transform.translation + Vec3::new(0.0, 110.0, 0.0),
+        Some(portraits.wizard.clone()),
     );
 }
 
@@ -130,6 +136,7 @@ pub(crate) fn trigger_wizard_followup(
     mut campaign: ResMut<CampaignState>,
     dialogue: Res<DialogueState>,
     mut cinematic: ResMut<DialogueCinematicState>,
+    portraits: Res<DialoguePortraits>,
     player_query: Query<&Transform, With<Player>>,
 ) {
     if campaign.current_level != LevelId::LevelOne
@@ -161,53 +168,7 @@ pub(crate) fn trigger_wizard_followup(
                 .to_string(),
         ],
         player_transform.translation + Vec3::new(0.0, 90.0, 0.0),
-    );
-}
-
-pub(crate) fn trigger_tutorial_hint(
-    mut campaign: ResMut<CampaignState>,
-    dialogue: Res<DialogueState>,
-    mut cinematic: ResMut<DialogueCinematicState>,
-    player_query: Query<&Transform, With<Player>>,
-    tutorial_query: Query<&Transform, With<TutorialMarker>>,
-) {
-    if campaign.current_level != LevelId::LevelOne
-        || !campaign.wizard_intro_seen
-        || !campaign.wizard_followup_seen
-        || campaign.tutorial_hint_seen
-        || dialogue.active
-        || cinematic.is_active()
-    {
-        return;
-    }
-
-    let Ok(player_transform) = player_query.single() else {
-        return;
-    };
-    let Ok(marker_transform) = tutorial_query.single() else {
-        return;
-    };
-
-    if player_transform
-        .translation
-        .distance(marker_transform.translation)
-        > 145.0
-    {
-        return;
-    }
-
-    campaign.tutorial_hint_seen = true;
-
-    queue_dialogue(
-        &mut cinematic,
-        "Training Sign",
-        vec![
-            "Press E near the sword to pick it up.".to_string(),
-            "Left Click to slash.".to_string(),
-            "Hold Right Click to aim. Release to throw.".to_string(),
-            "If you throw it, you still have to walk over and grab it again.".to_string(),
-        ],
-        marker_transform.translation + Vec3::new(0.0, 90.0, 0.0),
+        Some(portraits.wizard.clone()),
     );
 }
 
@@ -331,9 +292,16 @@ pub(crate) fn try_advance_level(
     player_query: Query<&Transform, With<Player>>,
     door_query: Query<(&Transform, &TrainingDoor), Without<Player>>,
 ) {
-    if campaign.current_level != LevelId::LevelOne || pending_transition.next_level.is_some() {
+    if pending_transition.next_level.is_some() {
         return;
     }
+
+    // Level 3 is the last level — no advance.
+    let next = match campaign.current_level {
+        LevelId::LevelOne => LevelId::LevelTwo,
+        LevelId::LevelTwo => LevelId::LevelThree,
+        LevelId::LevelThree => return,
+    };
 
     let Ok(player_transform) = player_query.single() else {
         return;
@@ -342,11 +310,8 @@ pub(crate) fn try_advance_level(
         return;
     };
 
-    if door.open
-        && player_transform.translation.x >= door_transform.translation.x + 36.0
-        && player_transform.translation.x >= LEVEL_ONE_DOOR_X + 36.0
-    {
-        pending_transition.next_level = Some(LevelId::LevelTwo);
+    if door.open && player_transform.translation.x >= door_transform.translation.x + 36.0 {
+        pending_transition.next_level = Some(next);
     }
 }
 
@@ -456,10 +421,6 @@ pub(crate) fn apply_level_transition(
     );
 }
 
-pub(crate) fn wizard_scale() -> f32 {
-    WIZARD_SCALE
-}
-
 fn spawn_crate_break_effect(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
     let center = position + Vec3::new(0.0, 42.0, 6.0);
     let shards = [
@@ -507,10 +468,46 @@ fn spawn_crate_break_effect(commands: &mut Commands, art: &LevelArtHandles, posi
     }
 }
 
+pub(crate) fn sync_level_two_door(
+    campaign: Res<CampaignState>,
+    mut door_query: Query<&mut TrainingDoor>,
+) {
+    if !campaign.is_changed() {
+        return;
+    }
+    if campaign.current_level != LevelId::LevelTwo || !campaign.level_two_goal_complete {
+        return;
+    }
+    for mut door in &mut door_query {
+        if !door.open {
+            door.open = true;
+        }
+    }
+}
+
+pub(crate) fn sync_level_three_completion_text(
+    campaign: Res<CampaignState>,
+    mut query: Query<&mut Visibility, With<LevelThreeCompletionText>>,
+) {
+    if !campaign.is_changed() {
+        return;
+    }
+    for mut vis in &mut query {
+        *vis = if campaign.current_level == LevelId::LevelThree
+            && campaign.puzzle_progress >= crate::puzzle::PUZZLE_SEQUENCE.len()
+        {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+}
+
 fn reset_level_progress(campaign: &mut CampaignState) {
     campaign.wizard_intro_seen = false;
     campaign.wizard_followup_seen = false;
     campaign.tutorial_hint_seen = false;
     campaign.crate_broken = false;
     campaign.level_two_goal_complete = false;
+    campaign.puzzle_progress = 0;
 }

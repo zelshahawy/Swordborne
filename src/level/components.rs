@@ -44,9 +44,6 @@ pub(crate) struct WizardAnimationTimer(pub Timer);
 pub(crate) struct WizardAnimationFrame(pub usize);
 
 #[derive(Component)]
-pub(crate) struct TutorialMarker;
-
-#[derive(Component)]
 pub(crate) struct BreakableCrate {
     pub reward: CrateReward,
 }
@@ -76,3 +73,6 @@ pub struct SwordBlocker {
 
 #[derive(Component)]
 pub(crate) struct LevelTwoCompletionText;
+
+#[derive(Component)]
+pub(crate) struct LevelThreeCompletionText;
