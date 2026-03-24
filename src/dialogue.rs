@@ -8,9 +8,8 @@ pub struct DialoguePlugin;
 const DIALOGUE_ZOOM_IN_DURATION: f32 = 0.35;
 const DIALOGUE_ZOOM_OUT_DURATION: f32 = 0.28;
 const DIALOGUE_TARGET_SCALE: f32 = 0.78;
-const PORTRAIT_PANEL_WIDTH: f32 = 180.0;
-const PORTRAIT_SIZE: f32 = 148.0;
-const BOX_HEIGHT: f32 = 210.0;
+const PORTRAIT_PANEL_WIDTH: f32 = 220.0;
+const BOX_HEIGHT: f32 = 230.0;
 
 #[derive(Resource)]
 pub struct DialoguePortraits {
@@ -23,7 +22,7 @@ impl FromWorld for DialoguePortraits {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.resource::<AssetServer>().clone();
         Self {
-            wizard: asset_server.load("dungeon/frames/wizzard_m_idle_anim_f0.png"),
+            wizard: asset_server.load("wizard.png"),
             knight: asset_server.load("dungeon/frames/knight_m_idle_anim_f0.png"),
         }
     }
@@ -172,6 +171,7 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
             root.spawn((
                 Node {
                     width: Val::Px(PORTRAIT_PANEL_WIDTH),
+                    flex_shrink: 0.0,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     border: UiRect::right(Val::Px(3.0)),
@@ -185,11 +185,11 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                     DialoguePortraitImage,
                     Visibility::Hidden,
                     Node {
-                        width: Val::Px(PORTRAIT_SIZE),
-                        height: Val::Px(PORTRAIT_SIZE),
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         ..default()
                     },
-                    ImageNode::default(),
+                    ImageNode::default().with_mode(NodeImageMode::Stretch),
                 ));
             });
 
@@ -197,8 +197,8 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
             root.spawn((Node {
                 flex_grow: 1.0,
                 flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::SpaceBetween,
-                padding: UiRect::axes(Val::Px(32.0), Val::Px(20.0)),
+                padding: UiRect::axes(Val::Px(36.0), Val::Px(22.0)),
+                row_gap: Val::Px(12.0),
                 ..default()
             },))
             .with_children(|text| {
@@ -207,7 +207,7 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                     Text::new(""),
                     TextFont {
                         font: fonts.pixel_bold.clone(),
-                        font_size: 22.0,
+                        font_size: 28.0,
                         ..default()
                     },
                     TextColor(Color::srgb(0.97, 0.86, 0.58)),
@@ -215,10 +215,14 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
 
                 text.spawn((
                     DialogueBodyText,
+                    Node {
+                        flex_grow: 1.0,
+                        ..default()
+                    },
                     Text::new(""),
                     TextFont {
                         font: fonts.pixel_regular.clone(),
-                        font_size: 17.0,
+                        font_size: 24.0,
                         ..default()
                     },
                     TextColor(Color::srgb(0.94, 0.95, 0.98)),
@@ -229,7 +233,7 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                     Text::new("[ Space / Enter / E ] to continue"),
                     TextFont {
                         font: fonts.pixel_regular.clone(),
-                        font_size: 11.0,
+                        font_size: 13.0,
                         ..default()
                     },
                     TextColor(Color::srgb(0.55, 0.64, 0.80)),
@@ -271,6 +275,9 @@ fn sync_dialogue_ui(
         *visibility = Visibility::Hidden;
         **speaker_text = String::new();
         **body_text = String::new();
+        if let Ok((_, mut portrait_vis)) = portrait_query.single_mut() {
+            *portrait_vis = Visibility::Hidden;
+        }
         return;
     }
 

@@ -7,6 +7,69 @@ pub enum GameState {
     InGame,
 }
 
+// ── Block colors ─────────────────────────────────────────────────────────────
+
+pub const RED_DIM: Color = Color::srgb(0.45, 0.08, 0.08);
+pub const GREEN_DIM: Color = Color::srgb(0.08, 0.38, 0.10);
+pub const BLUE_DIM: Color = Color::srgb(0.08, 0.14, 0.52);
+pub const RED_BRIGHT: Color = Color::srgb(0.95, 0.22, 0.22);
+pub const GREEN_BRIGHT: Color = Color::srgb(0.18, 0.92, 0.28);
+pub const BLUE_BRIGHT: Color = Color::srgb(0.22, 0.44, 0.98);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[allow(dead_code)]
+pub enum BlockColor {
+    #[default]
+    Green,
+    Red,
+    Blue,
+}
+
+impl BlockColor {
+    pub fn dim_color(self) -> Color {
+        match self {
+            BlockColor::Red => RED_DIM,
+            BlockColor::Green => GREEN_DIM,
+            BlockColor::Blue => BLUE_DIM,
+        }
+    }
+
+    pub fn bright_color(self) -> Color {
+        match self {
+            BlockColor::Red => RED_BRIGHT,
+            BlockColor::Green => GREEN_BRIGHT,
+            BlockColor::Blue => BLUE_BRIGHT,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            BlockColor::Red => "RED",
+            BlockColor::Green => "GRN",
+            BlockColor::Blue => "BLU",
+        }
+    }
+}
+
+pub(crate) fn random_puzzle_sequence() -> [BlockColor; 3] {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
+
+    let mut arr = [BlockColor::Green, BlockColor::Red, BlockColor::Blue];
+    let mut seed = nanos as u64 | 1;
+
+    for i in (1..3usize).rev() {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        let j = (seed as usize) % (i + 1);
+        arr.swap(i, j);
+    }
+    arr
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum LevelId {
     #[default]
@@ -28,6 +91,7 @@ pub struct CampaignState {
     pub tutorial_hint_seen: bool,
     pub crate_broken: bool,
     pub level_two_goal_complete: bool,
+    pub puzzle_sequence: [BlockColor; 3],
     pub puzzle_progress: usize,
 }
 
@@ -40,6 +104,7 @@ impl Default for CampaignState {
             tutorial_hint_seen: false,
             crate_broken: false,
             level_two_goal_complete: false,
+            puzzle_sequence: random_puzzle_sequence(),
             puzzle_progress: 0,
         }
     }

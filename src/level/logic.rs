@@ -310,7 +310,7 @@ pub(crate) fn try_advance_level(
         return;
     };
 
-    if door.open && player_transform.translation.x >= door_transform.translation.x + 36.0 {
+    if door.open && player_transform.translation.x >= door_transform.translation.x + 8.0 {
         pending_transition.next_level = Some(next);
     }
 }
@@ -494,7 +494,7 @@ pub(crate) fn sync_level_three_completion_text(
     }
     for mut vis in &mut query {
         *vis = if campaign.current_level == LevelId::LevelThree
-            && campaign.puzzle_progress >= crate::puzzle::PUZZLE_SEQUENCE.len()
+            && campaign.puzzle_progress >= campaign.puzzle_sequence.len()
         {
             Visibility::Visible
         } else {
@@ -509,5 +509,6 @@ fn reset_level_progress(campaign: &mut CampaignState) {
     campaign.tutorial_hint_seen = false;
     campaign.crate_broken = false;
     campaign.level_two_goal_complete = false;
+    campaign.puzzle_sequence = crate::state::random_puzzle_sequence();
     campaign.puzzle_progress = 0;
 }

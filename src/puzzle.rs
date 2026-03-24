@@ -2,61 +2,15 @@ use bevy::prelude::*;
 
 use crate::level::TrainingDoor;
 use crate::player::{Facing, HasSword, Player, PlayerActionState};
-use crate::state::{CampaignState, GameState, LevelId};
+use crate::state::{BlockColor, CampaignState, GameState, LevelId};
 use crate::sword::{Sword, SwordState};
 
 pub struct PuzzlePlugin;
 
-/// The required hit order for level 3.
-pub const PUZZLE_SEQUENCE: [BlockColor; 3] =
-    [BlockColor::Green, BlockColor::Red, BlockColor::Blue];
-
 const BLOCK_HIT_RADIUS: f32 = 80.0;
 const BLOCK_SLASH_RANGE_X: f32 = 120.0;
 const BLOCK_SLASH_RANGE_Y: f32 = 96.0;
-/// Cooldown prevents one slash animation from counting as multiple hits.
 const HIT_COOLDOWN_SECS: f32 = 0.45;
-
-pub const RED_DIM: Color = Color::srgb(0.45, 0.08, 0.08);
-pub const GREEN_DIM: Color = Color::srgb(0.08, 0.38, 0.10);
-pub const BLUE_DIM: Color = Color::srgb(0.08, 0.14, 0.52);
-
-pub const RED_BRIGHT: Color = Color::srgb(0.95, 0.22, 0.22);
-pub const GREEN_BRIGHT: Color = Color::srgb(0.18, 0.92, 0.28);
-pub const BLUE_BRIGHT: Color = Color::srgb(0.22, 0.44, 0.98);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BlockColor {
-    Red,
-    Green,
-    Blue,
-}
-
-impl BlockColor {
-    pub fn dim_color(self) -> Color {
-        match self {
-            BlockColor::Red => RED_DIM,
-            BlockColor::Green => GREEN_DIM,
-            BlockColor::Blue => BLUE_DIM,
-        }
-    }
-
-    pub fn bright_color(self) -> Color {
-        match self {
-            BlockColor::Red => RED_BRIGHT,
-            BlockColor::Green => GREEN_BRIGHT,
-            BlockColor::Blue => BLUE_BRIGHT,
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            BlockColor::Red => "RED",
-            BlockColor::Green => "GRN",
-            BlockColor::Blue => "BLU",
-        }
-    }
-}
 
 #[derive(Component)]
 pub struct PuzzleBlock {
@@ -92,7 +46,7 @@ fn check_block_hit(
     >,
     sword_query: Query<(&Transform, &SwordState), With<Sword>>,
 ) {
-    if campaign.puzzle_progress >= PUZZLE_SEQUENCE.len() {
+    if campaign.puzzle_progress >= campaign.puzzle_sequence.len() {
         return;
     }
 
@@ -148,7 +102,7 @@ fn check_block_hit(
         return;
     };
 
-    let expected = PUZZLE_SEQUENCE[campaign.puzzle_progress];
+    let expected = campaign.puzzle_sequence[campaign.puzzle_progress];
 
     // Pass 2 – apply state changes.
     if color == expected {
@@ -190,7 +144,7 @@ fn sync_puzzle_door(
     if !campaign.is_changed() {
         return;
     }
-    if campaign.puzzle_progress < PUZZLE_SEQUENCE.len() {
+    if campaign.puzzle_progress < campaign.puzzle_sequence.len() {
         return;
     }
     for mut door in &mut door_query {

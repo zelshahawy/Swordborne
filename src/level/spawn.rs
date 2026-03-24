@@ -14,7 +14,8 @@ use crate::level::{
     WizardAnimationTimer, WizardNpc, frame_level_camera, spawn_bottom_anchored_sprite,
     spawn_centered_tile, spawn_room_shell,
 };
-use crate::puzzle::{BlockColor, PUZZLE_SEQUENCE, PuzzleBlock};
+use crate::puzzle::PuzzleBlock;
+use crate::state::BlockColor;
 use crate::player::{GROUND_Y, PlayerAnimationHandles, spawn::spawn_player_entity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{SwordState, SwordVisualHandles, spawn::spawn_sword_entity};
@@ -71,7 +72,7 @@ pub(crate) fn spawn_level_scene(
         LevelId::LevelTwo => {
             spawn_level_two(commands, art, fonts, player_anims, sword_visuals, profile)
         }
-        LevelId::LevelThree => spawn_level_three(commands, art, fonts, player_anims, sword_visuals, profile),
+        LevelId::LevelThree => spawn_level_three(commands, art, fonts, player_anims, sword_visuals, campaign, profile),
     }
 }
 
@@ -101,6 +102,19 @@ fn spawn_level_one(
         SwordState::Grounded,
     );
     commands.entity(sword).insert(LevelEntity);
+
+    commands.spawn((
+        LevelEntity,
+        Text2d::new("[ E ] Pick up"),
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.80, 0.88, 0.98)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(LEVEL_ONE_SWORD_X, GROUND_Y + 96.0, 5.0),
+    ));
 
     spawn_wizard(commands, art, Vec3::new(LEVEL_ONE_WIZARD_X, GROUND_Y, 4.0));
 
@@ -328,6 +342,7 @@ fn spawn_level_three(
     fonts: &GameFonts,
     player_anims: &PlayerAnimationHandles,
     sword_visuals: &SwordVisualHandles,
+    campaign: &CampaignState,
     profile: &PlayerProfile,
 ) {
     commands.insert_resource(level_bounds_for(LevelId::LevelThree));
@@ -385,7 +400,7 @@ fn spawn_level_three(
     let seq_y = ROOM_CEILING_Y - 28.0;
     let seq_start_x = -80.0;
     let seq_spacing = 56.0;
-    for (i, color) in PUZZLE_SEQUENCE.iter().enumerate() {
+    for (i, color) in campaign.puzzle_sequence.iter().enumerate() {
         let x = seq_start_x + i as f32 * seq_spacing;
         commands.spawn((
             LevelEntity,
@@ -447,7 +462,7 @@ fn spawn_level_three(
         },
         TextColor(Color::srgb(0.98, 0.92, 0.72)),
         TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, ROOM_CEILING_Y - 60.0, 8.0),
+        Transform::from_xyz(0.0, GROUND_Y + 150.0, 8.0),
     ));
 }
 
