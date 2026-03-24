@@ -13,14 +13,15 @@ mod spawn;
 pub(crate) use assets::{LevelArtHandles, load_level_art};
 pub(crate) use components::{
     BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity,
-    LevelThreeCompletionText, LevelTwoCompletionText, PendingLevelTransition, SwordBlocker,
-    TrainingDoor, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
+    LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
+    PendingLevelTransition, SwordBlocker, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer,
+    WizardNpc,
 };
 pub(crate) use logic::{
     animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
-    restart_current_level, sync_level_three_completion_text, sync_level_two_completion_text,
-    sync_level_two_door, trigger_wizard_followup, trigger_wizard_intro,
-    try_advance_level, update_crate_break_shards, update_training_door_visual,
+    restart_current_level, sync_level_four_completion_text, sync_level_three_completion_text,
+    sync_level_two_completion_text, sync_level_two_door, trigger_wizard_followup,
+    trigger_wizard_intro, try_advance_level, update_crate_break_shards, update_training_door_visual,
 };
 pub(crate) use scene::{
     frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile, spawn_room_shell,
@@ -64,6 +65,19 @@ pub(crate) const LEVEL_THREE_GREEN_X: f32 = 300.0;
 pub(crate) const LEVEL_THREE_RED_X: f32 = -100.0;
 pub(crate) const LEVEL_THREE_BLUE_X: f32 = -450.0;
 
+// Level 4 – "The Vault": 5-step sequence on elevated platforms
+// Sequence (fixed): Blue → Red → Green → Red → Blue
+// Blue blocks are ground-level (melee-accessible); Red and Green are on raised
+// platforms that the player can only hit with a thrown sword.
+pub(crate) const LEVEL_FOUR_PLAYER_START_X: f32 = -620.0;
+pub(crate) const LEVEL_FOUR_DOOR_X: f32 = 650.0;
+pub(crate) const LEVEL_FOUR_BLUE_A_X: f32 = -530.0; // ground, far left
+pub(crate) const LEVEL_FOUR_BLUE_B_X: f32 = 530.0;  // ground, far right
+pub(crate) const LEVEL_FOUR_RED_A_X: f32 = -240.0;  // elevated left platform
+pub(crate) const LEVEL_FOUR_GREEN_X: f32 = 0.0;     // elevated center platform
+pub(crate) const LEVEL_FOUR_RED_B_X: f32 = 240.0;   // elevated right platform
+/// Y of the top surface of every Level 4 raised platform.
+
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<components::LevelBounds>()
@@ -106,6 +120,7 @@ impl Plugin for LevelPlugin {
                     sync_level_two_door,
                     sync_level_two_completion_text,
                     sync_level_three_completion_text,
+                    sync_level_four_completion_text,
                     try_advance_level,
                 )
                     .run_if(in_state(GameState::InGame))

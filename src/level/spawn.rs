@@ -3,14 +3,16 @@ use bevy::sprite::Anchor;
 
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableCrate, CrateReward, LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
+    BreakableCrate, CrateReward, LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
+    LEVEL_FOUR_GREEN_X, LEVEL_FOUR_PLAYER_START_X, LEVEL_FOUR_RED_A_X, LEVEL_FOUR_RED_B_X,
+    LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
     LEVEL_ONE_SWORD_X, LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_THREE_BLUE_X,
     LEVEL_THREE_DOOR_X, LEVEL_THREE_GREEN_X, LEVEL_THREE_PLAYER_START_X, LEVEL_THREE_RED_X,
     LEVEL_TWO_CRATE_X, LEVEL_TWO_DOOR_X, LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y,
     LEVEL_TWO_PLAYER_START_X, LEVEL_TWO_SHELF_TOP_Y, LevelArtHandles, LevelBounds, LevelEntity,
-    LevelThreeCompletionText, LevelTwoCompletionText, ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X,
-    ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker, TILE_SCALE,
-    TILE_WORLD_SIZE, TrainingDoor, WIZARD_SCALE, WizardAnimationFrame,
+    LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText, ROOM_CEILING_Y,
+    ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker,
+    TILE_SCALE, TILE_WORLD_SIZE, TrainingDoor, WIZARD_SCALE, WizardAnimationFrame,
     WizardAnimationTimer, WizardNpc, frame_level_camera, spawn_bottom_anchored_sprite,
     spawn_centered_tile, spawn_room_shell,
 };
@@ -72,7 +74,12 @@ pub(crate) fn spawn_level_scene(
         LevelId::LevelTwo => {
             spawn_level_two(commands, art, fonts, player_anims, sword_visuals, profile)
         }
-        LevelId::LevelThree => spawn_level_three(commands, art, fonts, player_anims, sword_visuals, campaign, profile),
+        LevelId::LevelThree => {
+            spawn_level_three(commands, art, fonts, player_anims, sword_visuals, campaign, profile)
+        }
+        LevelId::LevelFour => {
+            spawn_level_four(commands, art, fonts, player_anims, sword_visuals, campaign, profile)
+        }
     }
 }
 
@@ -118,7 +125,6 @@ fn spawn_level_one(
 
     spawn_wizard(commands, art, Vec3::new(LEVEL_ONE_WIZARD_X, GROUND_Y, 4.0));
 
-    // Potion props beside the wizard
     spawn_bottom_anchored_sprite(
         commands,
         art.flask_big_blue.clone(),
@@ -132,7 +138,6 @@ fn spawn_level_one(
         TILE_SCALE,
     );
 
-    // Decorative chest
     spawn_bottom_anchored_sprite(
         commands,
         art.chest_closed.clone(),
@@ -140,7 +145,6 @@ fn spawn_level_one(
         TILE_SCALE,
     );
 
-    // Atmospheric skull on the floor
     spawn_bottom_anchored_sprite(
         commands,
         art.skull.clone(),
@@ -192,7 +196,6 @@ fn spawn_level_two(
 
     spawn_level_two_target_shelf(commands, art);
 
-    // Atmospheric props flanking the shelf
     spawn_bottom_anchored_sprite(
         commands,
         art.skull.clone(),
@@ -206,7 +209,6 @@ fn spawn_level_two(
         TILE_SCALE,
     );
 
-    // Exit door — opens when the crate above is smashed
     spawn_training_door(
         commands,
         art,
@@ -365,7 +367,6 @@ fn spawn_level_three(
     );
     commands.entity(sword).insert(LevelEntity);
 
-    // Puzzle blocks
     let blocks = [
         (LEVEL_THREE_GREEN_X, BlockColor::Green),
         (LEVEL_THREE_RED_X, BlockColor::Red),
@@ -382,7 +383,6 @@ fn spawn_level_three(
             Sprite::from_color(color.dim_color(), Vec2::new(48.0, 48.0)),
             Transform::from_xyz(x, GROUND_Y + 48.0, 4.0),
         ));
-        // Label below each block
         commands.spawn((
             LevelEntity,
             Text2d::new(color.label()),
@@ -396,7 +396,6 @@ fn spawn_level_three(
         ));
     }
 
-    // Sequence indicator — colored squares across the top of the room
     let seq_y = ROOM_CEILING_Y - 28.0;
     let seq_start_x = -80.0;
     let seq_spacing = 56.0;
@@ -420,7 +419,6 @@ fn spawn_level_three(
         ));
     }
 
-    // Hint text
     commands.spawn((
         LevelEntity,
         Text2d::new("Strike the blocks in the order shown above."),
@@ -434,7 +432,6 @@ fn spawn_level_three(
         Transform::from_xyz(seq_start_x + seq_spacing, seq_y - 44.0, 5.0),
     ));
 
-    // Exit door
     spawn_training_door(
         commands,
         art,
@@ -442,7 +439,6 @@ fn spawn_level_three(
         false,
     );
 
-    // Completion text
     let knight_name = if profile.name.is_empty() {
         "Knight"
     } else {
@@ -466,6 +462,111 @@ fn spawn_level_three(
     ));
 }
 
+fn spawn_level_four(
+    commands: &mut Commands,
+    art: &LevelArtHandles,
+    fonts: &GameFonts,
+    player_anims: &PlayerAnimationHandles,
+    sword_visuals: &SwordVisualHandles,
+    campaign: &CampaignState,
+    profile: &PlayerProfile,
+) {
+    commands.insert_resource(level_bounds_for(LevelId::LevelFour));
+
+    spawn_room_shell(commands, art, fonts, "LEVEL 4");
+
+    let player = spawn_player_entity(
+        commands,
+        player_anims,
+        Vec3::new(LEVEL_FOUR_PLAYER_START_X, GROUND_Y, 5.0),
+        true,
+    );
+    commands.entity(player).insert(LevelEntity);
+
+    let sword = spawn_sword_entity(
+        commands,
+        sword_visuals,
+        Vec3::new(LEVEL_FOUR_PLAYER_START_X, GROUND_Y, 4.0),
+        SwordState::Equipped,
+    );
+    commands.entity(sword).insert(LevelEntity);
+
+    // All 5 blocks are elevated — every step requires a throw.
+    // Blue_A/B are spawned first so the puzzle system hits Blue_A before Blue_B.
+    for (x, color) in [
+        (LEVEL_FOUR_BLUE_A_X, BlockColor::Blue),
+        (LEVEL_FOUR_RED_A_X, BlockColor::Red),
+        (LEVEL_FOUR_GREEN_X, BlockColor::Green),
+        (LEVEL_FOUR_RED_B_X, BlockColor::Red),
+        (LEVEL_FOUR_BLUE_B_X, BlockColor::Blue),
+    ] {
+        spawn_bottom_anchored_sprite(
+            commands,
+            art.column_wall.clone(),
+            Vec3::new(x, GROUND_Y, 2.0),
+            TILE_SCALE,
+        );
+        commands.spawn((
+            LevelEntity,
+            PuzzleBlock { color, activated: false, hit_cooldown: 0.0 },
+            Sprite::from_color(color.dim_color(), Vec2::new(48.0, 48.0)),
+            Transform::from_xyz(x, GROUND_Y + 210.0, 4.0),
+        ));
+        commands.spawn((
+            LevelEntity,
+            Text2d::new(color.label()),
+            TextFont { font: fonts.pixel_bold.clone(), font_size: 12.0, ..default() },
+            TextColor(Color::srgb(0.85, 0.85, 0.85)),
+            Transform::from_xyz(x, GROUND_Y + 170.0, 4.0),
+        ));
+    }
+
+    // Sequence indicator — 5 colored squares across the top of the room.
+    let seq_y = ROOM_CEILING_Y - 28.0;
+    let seq_spacing = 56.0;
+    let seq_start_x = -(campaign.puzzle_sequence.len() as f32 - 1.0) * seq_spacing * 0.5;
+    for (i, color) in campaign.puzzle_sequence.iter().enumerate() {
+        let x = seq_start_x + i as f32 * seq_spacing;
+        commands.spawn((
+            LevelEntity,
+            Sprite::from_color(color.bright_color(), Vec2::new(32.0, 32.0)),
+            Transform::from_xyz(x, seq_y, 5.0),
+        ));
+        commands.spawn((
+            LevelEntity,
+            Text2d::new(format!("{}.", i + 1)),
+            TextFont { font: fonts.pixel_bold.clone(), font_size: 11.0, ..default() },
+            TextColor(Color::srgb(0.85, 0.85, 0.85)),
+            Transform::from_xyz(x, seq_y - 24.0, 5.0),
+        ));
+    }
+
+    commands.spawn((
+        LevelEntity,
+        Text2d::new("Aim upward to throw the sword at elevated blocks."),
+        TextFont { font: fonts.pixel_regular.clone(), font_size: 11.0, ..default() },
+        TextColor(Color::srgb(0.75, 0.75, 0.75)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(0.0, seq_y - 44.0, 5.0),
+    ));
+
+    spawn_training_door(commands, art, Vec3::new(LEVEL_FOUR_DOOR_X, GROUND_Y, 4.0), false);
+
+    let knight_name = if profile.name.is_empty() { "Knight" } else { profile.name.as_str() };
+    commands.spawn((
+        LevelEntity,
+        LevelFourCompletionText,
+        Visibility::Hidden,
+        Text2d::new(format!(
+            "{knight_name}, The Vault has fallen.\nYou are a true master of the sword."
+        )),
+        TextFont { font: fonts.pixel_regular.clone(), font_size: 14.0, ..default() },
+        TextColor(Color::srgb(0.98, 0.92, 0.72)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(0.0, GROUND_Y + 150.0, 8.0),
+    ));
+}
+
 fn spawn_sword_blocker(commands: &mut Commands, center: Vec2, half_extents: Vec2) {
     commands.spawn((
         LevelEntity,
@@ -476,28 +577,19 @@ fn spawn_sword_blocker(commands: &mut Commands, center: Vec2, half_extents: Vec2
 }
 
 pub(crate) fn level_bounds_for(level: LevelId) -> LevelBounds {
+    let standard = LevelBounds {
+        wall_left_x: ROOM_WALL_LEFT_X,
+        wall_right_x: ROOM_WALL_RIGHT_X,
+        player_left_x: ROOM_PLAYER_LEFT_X,
+        player_right_x: ROOM_PLAYER_RIGHT_X,
+        ceiling_y: ROOM_CEILING_Y,
+    };
     match level {
         LevelId::LevelOne => LevelBounds {
-            wall_left_x: ROOM_WALL_LEFT_X,
-            wall_right_x: ROOM_WALL_RIGHT_X,
             player_left_x: LEVEL_ONE_PLAYER_START_X,
-            player_right_x: ROOM_PLAYER_RIGHT_X,
-            ceiling_y: ROOM_CEILING_Y,
+            ..standard
         },
-        LevelId::LevelTwo => LevelBounds {
-            wall_left_x: ROOM_WALL_LEFT_X,
-            wall_right_x: ROOM_WALL_RIGHT_X,
-            player_left_x: ROOM_PLAYER_LEFT_X,
-            player_right_x: ROOM_PLAYER_RIGHT_X,
-            ceiling_y: ROOM_CEILING_Y,
-        },
-        LevelId::LevelThree => LevelBounds {
-            wall_left_x: ROOM_WALL_LEFT_X,
-            wall_right_x: ROOM_WALL_RIGHT_X,
-            player_left_x: ROOM_PLAYER_LEFT_X,
-            player_right_x: ROOM_PLAYER_RIGHT_X,
-            ceiling_y: ROOM_CEILING_Y,
-        },
+        LevelId::LevelTwo | LevelId::LevelThree | LevelId::LevelFour => standard,
     }
 }
 
@@ -506,5 +598,6 @@ pub(crate) fn level_camera_focus_x(level: LevelId) -> f32 {
         LevelId::LevelOne => LEVEL_ONE_PLAYER_START_X,
         LevelId::LevelTwo => LEVEL_TWO_PLAYER_START_X,
         LevelId::LevelThree => LEVEL_THREE_PLAYER_START_X,
+        LevelId::LevelFour => LEVEL_FOUR_PLAYER_START_X,
     }
 }

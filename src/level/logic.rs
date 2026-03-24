@@ -5,9 +5,9 @@ use crate::dialogue::{DialogueCinematicState, DialoguePortraits, DialogueState, 
 use crate::fonts::GameFonts;
 use crate::level::{
     BreakableCrate, CrateBreakShard, CrateReward, LevelArtHandles, LevelBounds, LevelEntity,
-    LevelThreeCompletionText, LevelTwoCompletionText, PendingLevelTransition, TrainingDoor,
-    WizardAnimationFrame, WizardAnimationTimer, WizardNpc, frame_level_camera,
-    level_bounds_for, level_camera_focus_x, spawn_level_scene,
+    LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
+    PendingLevelTransition, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
+    frame_level_camera, level_bounds_for, level_camera_focus_x, spawn_level_scene,
 };
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
@@ -57,7 +57,7 @@ pub(crate) fn constrain_player_to_level(
     // Block the player at a closed door in levels that have one.
     let level_has_door = matches!(
         campaign.current_level,
-        LevelId::LevelOne | LevelId::LevelTwo | LevelId::LevelThree
+        LevelId::LevelOne | LevelId::LevelTwo | LevelId::LevelThree | LevelId::LevelFour
     );
     if level_has_door
         && let Ok((door_transform, door)) = door_query.single()
@@ -296,11 +296,11 @@ pub(crate) fn try_advance_level(
         return;
     }
 
-    // Level 3 is the last level — no advance.
     let next = match campaign.current_level {
         LevelId::LevelOne => LevelId::LevelTwo,
         LevelId::LevelTwo => LevelId::LevelThree,
-        LevelId::LevelThree => return,
+        LevelId::LevelThree => LevelId::LevelFour,
+        LevelId::LevelFour => return, // final level — no advance
     };
 
     let Ok(player_transform) = player_query.single() else {
@@ -509,6 +509,27 @@ fn reset_level_progress(campaign: &mut CampaignState) {
     campaign.tutorial_hint_seen = false;
     campaign.crate_broken = false;
     campaign.level_two_goal_complete = false;
-    campaign.puzzle_sequence = crate::state::random_puzzle_sequence();
+    campaign.puzzle_sequence = match campaign.current_level {
+        LevelId::LevelFour => crate::state::level_four_sequence(),
+        _ => crate::state::random_puzzle_sequence(),
+    };
     campaign.puzzle_progress = 0;
+}
+
+pub(crate) fn sync_level_four_completion_text(
+    campaign: Res<CampaignState>,
+    mut query: Query<&mut Visibility, With<LevelFourCompletionText>>,
+) {
+    if !campaign.is_changed() {
+        return;
+    }
+    for mut vis in &mut query {
+        *vis = if campaign.current_level == LevelId::LevelFour
+            && campaign.puzzle_progress >= campaign.puzzle_sequence.len()
+        {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
 }

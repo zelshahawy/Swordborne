@@ -26,7 +26,10 @@ impl Plugin for PuzzlePlugin {
             Update,
             (check_block_hit, update_block_visuals, sync_puzzle_door)
                 .run_if(in_state(GameState::InGame))
-                .run_if(|c: Res<CampaignState>| c.current_level == LevelId::LevelThree),
+                .run_if(|c: Res<CampaignState>| {
+                    c.current_level == LevelId::LevelThree
+                        || c.current_level == LevelId::LevelFour
+                }),
         );
     }
 }

@@ -76,3 +76,6 @@ pub(crate) struct LevelTwoCompletionText;
 
 #[derive(Component)]
 pub(crate) struct LevelThreeCompletionText;
+
+#[derive(Component)]
+pub(crate) struct LevelFourCompletionText;

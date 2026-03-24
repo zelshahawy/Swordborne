@@ -51,7 +51,7 @@ impl BlockColor {
     }
 }
 
-pub(crate) fn random_puzzle_sequence() -> [BlockColor; 3] {
+pub(crate) fn random_puzzle_sequence() -> Vec<BlockColor> {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -67,7 +67,20 @@ pub(crate) fn random_puzzle_sequence() -> [BlockColor; 3] {
         let j = (seed as usize) % (i + 1);
         arr.swap(i, j);
     }
-    arr
+    arr.to_vec()
+}
+
+/// Fixed 5-step sequence for Level 4: Blue → Red → Green → Red → Blue.
+/// The deliberate repeat forces the player to hit distinct block instances
+/// in strict order across the room.
+pub(crate) fn level_four_sequence() -> Vec<BlockColor> {
+    vec![
+        BlockColor::Blue,
+        BlockColor::Red,
+        BlockColor::Green,
+        BlockColor::Red,
+        BlockColor::Blue,
+    ]
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -76,6 +89,7 @@ pub enum LevelId {
     LevelOne,
     LevelTwo,
     LevelThree,
+    LevelFour,
 }
 
 #[derive(Resource, Default)]
@@ -91,7 +105,7 @@ pub struct CampaignState {
     pub tutorial_hint_seen: bool,
     pub crate_broken: bool,
     pub level_two_goal_complete: bool,
-    pub puzzle_sequence: [BlockColor; 3],
+    pub puzzle_sequence: Vec<BlockColor>,
     pub puzzle_progress: usize,
 }
 
@@ -104,7 +118,7 @@ impl Default for CampaignState {
             tutorial_hint_seen: false,
             crate_broken: false,
             level_two_goal_complete: false,
-            puzzle_sequence: random_puzzle_sequence(),
+            puzzle_sequence: random_puzzle_sequence(), // overridden per-level on reset
             puzzle_progress: 0,
         }
     }

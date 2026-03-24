@@ -234,7 +234,7 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
         );
     }
 
-    // Wall holes for dungeon atmosphere
+    // Wall holes for dungeon atmosphere — snapped to tile grid, mid-wall height
     for (x, texture) in [
         (-150.0, art.wall_hole_1.clone()),
         (150.0, art.wall_hole_2.clone()),
@@ -242,7 +242,7 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
         spawn_centered_tile(
             commands,
             texture,
-            Vec3::new(x, GROUND_Y + 100.0, -10.0),
+            Vec3::new(x, GROUND_Y + TILE_WORLD_SIZE * 2.5, -8.0),
         );
     }
 }
