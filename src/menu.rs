@@ -11,13 +11,12 @@ use bevy::{
 use crate::fonts::GameFonts;
 use crate::state::{CampaignState, GameState, PlayerProfile};
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::leaderboard::{LeaderboardResource, leaderboard_text};
+
 pub struct MenuPlugin;
 
-// ── footer messages ──────────────────────────────────────────────────────────
-
-const FOOTER_LANDING: &str = "Your Big Castle internship awaits.";
-const FOOTER_NAME_ENTRY: &str = "Enter your knight name, then press Start Game.";
-const FOOTER_CONTROLS: &str = "Press Esc to return to the menu.";
+const MENU_FADE_SPEED: f32 = 3.0;
 
 // ── resources ────────────────────────────────────────────────────────────────
 
@@ -27,26 +26,9 @@ struct PendingPlayerName {
 }
 
 #[derive(Resource, Default)]
-struct MenuViewState {
-    frame: MenuFrame,
-    footer_message: String,
-}
-
-impl MenuViewState {
-    fn go_to_landing(&mut self) {
-        self.frame = MenuFrame::Landing;
-        self.footer_message = FOOTER_LANDING.into();
-    }
-
-    fn go_to_name_entry(&mut self) {
-        self.frame = MenuFrame::NameEntry;
-        self.footer_message = FOOTER_NAME_ENTRY.into();
-    }
-
-    fn go_to_controls(&mut self) {
-        self.frame = MenuFrame::Controls;
-        self.footer_message = FOOTER_CONTROLS.into();
-    }
+struct MenuFadeOut {
+    active: bool,
+    alpha: f32,
 }
 
 #[derive(Resource)]
@@ -68,19 +50,13 @@ impl FromWorld for MenuArtHandles {
 struct MainMenuUi;
 
 #[derive(Component)]
+struct MenuFadeOverlay;
+
+#[derive(Component)]
 struct NameValueText;
 
 #[derive(Component)]
-struct FooterMessageText;
-
-#[derive(Component)]
-struct LandingFrame;
-
-#[derive(Component)]
-struct NameEntryFrame;
-
-#[derive(Component)]
-struct ControlsFrame;
+struct LeaderboardDisplayText;
 
 #[derive(Component)]
 struct MenuButton {
@@ -90,36 +66,19 @@ struct MenuButton {
 #[derive(Component)]
 struct MenuButtonLabel;
 
+#[derive(Component)]
+struct MenuControlsOverlay;
+
 // ── enums ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MenuAction {
     Play,
-    Settings,
+    Controls,
     Quit,
-    ConfirmName,
-    BackToMenu,
 }
 
 impl MenuAction {
-    /// Returns the button's height.
-    fn height(self) -> Val {
-        match self {
-            Self::ConfirmName | Self::BackToMenu => px(58.0),
-            _ => px(74.0),
-        }
-    }
-
-    /// Returns the label font size.
-    fn font_size(self) -> f32 {
-        match self {
-            Self::ConfirmName | Self::BackToMenu => 20.0,
-            _ => 36.0,
-        }
-    }
-
-    /// Visual colors for a given interaction state.
-    /// All buttons share a uniform white/neutral palette — no per-button tints.
     fn colors(self, interaction: Interaction) -> (Color, Color, Color) {
         let white = Color::srgb(1.0, 1.0, 1.0);
         match interaction {
@@ -142,36 +101,28 @@ impl MenuAction {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum MenuFrame {
-    #[default]
-    Landing,
-    NameEntry,
-    Controls,
-}
-
 // ── plugin ───────────────────────────────────────────────────────────────────
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PendingPlayerName>()
-            .init_resource::<MenuViewState>()
+            .init_resource::<MenuFadeOut>()
             .init_resource::<MenuArtHandles>()
             .init_resource::<PlayerProfile>()
             .init_resource::<CampaignState>()
-            .add_systems(OnEnter(GameState::MainMenu), spawn_main_menu)
+            .add_systems(OnEnter(GameState::MainMenu), (spawn_main_menu, reset_menu_fade))
             .add_systems(OnExit(GameState::MainMenu), despawn_main_menu)
             .add_systems(
                 Update,
-                (
-                    capture_name_input,
-                    sync_name_text,
-                    sync_footer_text,
-                    sync_menu_frame_visibility,
-                    handle_menu_buttons,
-                )
+                (capture_name_input, sync_name_text, handle_menu_buttons, tick_menu_fade)
                     .run_if(in_state(GameState::MainMenu)),
             );
+
+        #[cfg(not(target_arch = "wasm32"))]
+        app.add_systems(
+            Update,
+            sync_leaderboard_text.run_if(in_state(GameState::MainMenu)),
+        );
     }
 }
 
@@ -182,20 +133,15 @@ fn spawn_main_menu(
     art: Res<MenuArtHandles>,
     fonts: Res<GameFonts>,
     mut pending_name: ResMut<PendingPlayerName>,
-    mut menu_view: ResMut<MenuViewState>,
 ) {
     pending_name.value.clear();
-    menu_view.go_to_landing();
 
     commands
         .spawn((
             MainMenuUi,
             Node {
-                width: percent(100.0),
-                height: percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                padding: UiRect::new(px(28.0), px(28.0), px(88.0), px(52.0)),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..default()
             },
             BackgroundColor(Color::BLACK),
@@ -205,8 +151,8 @@ fn spawn_main_menu(
             root.spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    width: percent(100.0),
-                    height: percent(100.0),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..default()
                 },
                 ImageNode::new(art.background.clone()).with_mode(NodeImageMode::Stretch),
@@ -216,361 +162,259 @@ fn spawn_main_menu(
             root.spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    width: percent(100.0),
-                    height: percent(100.0),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..default()
                 },
-                BackgroundColor(Color::srgba(0.02, 0.03, 0.06, 0.48)),
+                BackgroundColor(Color::srgba(0.02, 0.03, 0.06, 0.55)),
             ));
 
-            // centred layout
+            // two-column layout
             root.spawn((Node {
-                width: percent(100.0),
-                height: percent(100.0),
-                justify_content: JustifyContent::Center,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
-                padding: UiRect::new(px(28.0), px(28.0), px(88.0), px(52.0)),
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Px(40.0),
+                padding: UiRect::axes(Val::Px(60.0), Val::Px(60.0)),
                 ..default()
             },))
-                .with_children(|layout| {
-                    layout
-                        .spawn((
+            .with_children(|row| {
+                spawn_left_panel(row, &fonts);
+                spawn_right_panel(row, &fonts);
+            });
+
+            // fade overlay for transition
+            root.spawn((
+                MainMenuUi,
+                MenuFadeOverlay,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
+                ZIndex(20),
+            ));
+
+            // controls overlay (hidden by default)
+            root.spawn((
+                MainMenuUi,
+                MenuControlsOverlay,
+                Visibility::Hidden,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.75)),
+                ZIndex(10),
+            ))
+            .with_children(|overlay| {
+                overlay.spawn((
+                    MainMenuUi,
+                    Node {
+                        padding: UiRect::all(Val::Px(36.0)),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(10.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        border_radius: BorderRadius::all(Val::Px(10.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.06, 0.06, 0.10, 0.96)),
+                    BorderColor::all(Color::srgba(0.5, 0.5, 0.8, 0.6)),
+                ))
+                .with_children(|panel| {
+                    panel.spawn((
+                        MainMenuUi,
+                        Text::new("CONTROLS"),
+                        TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
+                        TextColor(Color::srgb(0.95, 0.90, 0.60)),
+                    ));
+                    for (key, action) in [
+                        ("A / D", "Move left / right"),
+                        ("Space", "Jump"),
+                        ("E", "Pick up sword"),
+                        ("Left Click", "Slash"),
+                        ("Hold Right Click", "Aim throw"),
+                        ("Release Right Click", "Throw sword"),
+                        ("R", "Restart level"),
+                        ("ESC", "Toggle in-game menu"),
+                    ] {
+                        panel.spawn((
+                            MainMenuUi,
                             Node {
-                                width: px(700.0),
-                                max_width: percent(92.0),
-                                min_height: px(640.0),
-                                position_type: PositionType::Relative,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                border: UiRect::all(px(1.0)),
-                                border_radius: BorderRadius::px(44.0, 44.0, 36.0, 36.0),
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(16.0),
+                                width: Val::Px(340.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(0.02, 0.03, 0.06, 0.45)),
-                            BorderColor::all(Color::srgba(0.95, 0.93, 0.88, 0.08)),
                         ))
-                        .with_children(|panel| spawn_menu_content(panel, &fonts));
+                        .with_children(|row| {
+                            row.spawn((
+                                MainMenuUi,
+                                Text::new(key),
+                                TextFont { font: fonts.pixel_bold.clone(), font_size: 13.0, ..default() },
+                                TextColor(Color::srgb(0.70, 0.85, 1.0)),
+                                Node { width: Val::Px(160.0), ..default() },
+                            ));
+                            row.spawn((
+                                MainMenuUi,
+                                Text::new(action),
+                                TextFont { font: fonts.pixel_regular.clone(), font_size: 13.0, ..default() },
+                                TextColor(Color::srgb(0.85, 0.85, 0.85)),
+                            ));
+                        });
+                    }
+                    panel.spawn((
+                        MainMenuUi,
+                        Text::new("Press ESC to close"),
+                        TextFont { font: fonts.pixel_regular.clone(), font_size: 12.0, ..default() },
+                        TextColor(Color::srgba(0.7, 0.7, 0.7, 0.6)),
+                        Node { margin: UiRect::top(Val::Px(10.0)), ..default() },
+                    ));
                 });
+            });
         });
 }
 
-fn spawn_menu_content(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
-    panel
+fn spawn_left_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
+    parent
         .spawn((Node {
-            width: percent(100.0),
-            height: percent(100.0),
+            width: Val::Px(380.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            row_gap: Val::Px(20.0),
+            padding: UiRect::all(Val::Px(36.0)),
             ..default()
         },))
-        .with_children(|frames| {
-            spawn_landing_frame(frames, fonts);
-            spawn_name_entry_frame(frames, fonts);
-            spawn_controls_frame(frames, fonts);
-        });
-
-    panel.spawn((
-        FooterMessageText,
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(36.0),
-            right: px(36.0),
-            bottom: px(20.0),
-            ..default()
-        },
-        Text::new(""),
-        make_font(&fonts.pixel_regular, 15.0),
-        TextColor(Color::srgb(0.72, 0.77, 0.85)),
-    ));
-}
-
-fn spawn_landing_frame(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
-    panel
-        .spawn((
-            LandingFrame,
-            Node {
-                width: percent(100.0),
-                height: percent(100.0),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-        ))
-        .with_children(|content| {
-            content.spawn((
-                Text::new("BIG CASTLE INTERNSHIP PROGRAM"),
-                make_font(&fonts.pixel_regular, 15.0),
+        .with_children(|col| {
+            col.spawn((
+                Text::new("Your Big Castle Internship"),
+                TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
                 TextColor(Color::srgb(0.93, 0.88, 0.76)),
             ));
 
-            // title with drop-shadow
-            content
-                .spawn((Node {
-                    width: percent(100.0),
-                    height: px(168.0),
+            // title
+            col.spawn((
+                Node {
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
-                    margin: UiRect::top(px(20.0)),
+                    margin: UiRect::vertical(Val::Px(4.0)),
                     ..default()
-                },))
-                .with_children(|title| {
-                    title.spawn((
-                        Node {
-                            position_type: PositionType::Absolute,
-                            left: px(6.0),
-                            top: px(8.0),
-                            ..default()
-                        },
-                        Text::new("SwordBorne"),
-                        make_font(&fonts.pixel_bold, 84.0),
-                        TextColor(Color::srgba(0.01, 0.01, 0.02, 0.26)),
-                    ));
-
-                    title.spawn((
-                        Text::new("SwordBorne"),
-                        make_font(&fonts.pixel_bold, 80.0),
-                        TextColor(Color::srgb(0.99, 0.98, 0.96)),
-                    ));
-                });
+                },
+            ))
+            .with_children(|title| {
+                title.spawn((
+                    Text::new("SwordBorne"),
+                    TextFont { font: fonts.pixel_bold.clone(), font_size: 60.0, ..default() },
+                    TextColor(Color::srgb(0.99, 0.98, 0.96)),
+                ));
+            });
 
             // divider
-            content.spawn((
+            col.spawn((
                 Node {
-                    width: px(240.0),
-                    height: px(1.0),
-                    margin: UiRect::axes(px(0.0), px(22.0)),
+                    width: Val::Px(200.0),
+                    height: Val::Px(1.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.95, 0.93, 0.88, 0.18)),
             ));
 
-            // buttons
-            content
-                .spawn((Node {
-                    width: px(340.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    row_gap: px(18.0),
-                    ..default()
-                },))
-                .with_children(|buttons| {
-                    spawn_menu_button(buttons, fonts, "Play", MenuAction::Play, None);
-                    spawn_menu_button(buttons, fonts, "Controls", MenuAction::Settings, None);
-                    spawn_menu_button(buttons, fonts, "Quit", MenuAction::Quit, None);
-                });
+            // name label
+            col.spawn((
+                Text::new("Knight Name"),
+                TextFont { font: fonts.pixel_regular.clone(), font_size: 13.0, ..default() },
+                TextColor(Color::srgb(0.72, 0.77, 0.85)),
+            ));
 
-            content.spawn((
+            // name input box
+            col.spawn((
                 Node {
-                    margin: UiRect::top(px(16.0)),
+                    width: Val::Percent(100.0),
+                    min_height: Val::Px(52.0),
+                    padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    border_radius: BorderRadius::all(Val::Px(12.0)),
                     ..default()
                 },
-                Text::new("Press [ ENTER ] to begin"),
-                make_font(&fonts.pixel_regular, 13.0),
-                TextColor(Color::srgba(0.72, 0.77, 0.85, 0.6)),
+                BackgroundColor(Color::srgba(0.11, 0.14, 0.2, 0.9)),
+                BorderColor::all(Color::srgb(0.31, 0.4, 0.55)),
+            ))
+            .with_children(|name_box| {
+                name_box.spawn((
+                    NameValueText,
+                    Text::new("> _"),
+                    TextFont { font: fonts.pixel_regular.clone(), font_size: 18.0, ..default() },
+                    TextColor(Color::srgb(0.97, 0.97, 0.99)),
+                ));
+            });
+
+            // buttons
+            col.spawn((Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(12.0),
+                margin: UiRect::top(Val::Px(8.0)),
+                ..default()
+            },))
+            .with_children(|buttons| {
+                spawn_menu_button(buttons, fonts, "Play", MenuAction::Play);
+                spawn_menu_button(buttons, fonts, "Controls", MenuAction::Controls);
+                spawn_menu_button(buttons, fonts, "Quit", MenuAction::Quit);
+            });
+
+            col.spawn((
+                Text::new("Press Enter to play"),
+                TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgba(0.72, 0.77, 0.85, 0.7)),
             ));
         });
 }
 
-fn spawn_name_entry_frame(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
-    panel
-        .spawn((
-            NameEntryFrame,
-            Visibility::Hidden,
-            Node {
-                width: percent(100.0),
-                height: percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-        ))
-        .with_children(|frame| {
-            frame
-                .spawn((
-                    Node {
-                        width: px(430.0),
-                        max_width: percent(88.0),
-                        padding: UiRect::all(px(28.0)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(18.0),
-                        border: UiRect::all(px(2.0)),
-                        border_radius: BorderRadius::px(30.0, 30.0, 24.0, 24.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.05, 0.06, 0.1, 0.9)),
-                    BorderColor::all(Color::srgb(0.88, 0.75, 0.46)),
-                ))
-                .with_children(|prompt| {
-                    prompt.spawn((
-                        Text::new("Enter Your Name"),
-                        make_font(&fonts.pixel_bold, 28.0),
-                        TextColor(Color::srgb(0.96, 0.9, 0.74)),
-                    ));
-
-                    prompt.spawn((
-                        Text::new("Big Castle insists the offer letter be addressed properly."),
-                        make_font(&fonts.pixel_regular, 14.0),
-                        TextColor(Color::srgb(0.74, 0.8, 0.88)),
-                    ));
-
-                    // name input box
-                    prompt
-                        .spawn((
-                            Node {
-                                width: percent(100.0),
-                                min_height: px(68.0),
-                                padding: UiRect::axes(px(16.0), px(14.0)),
-                                border: UiRect::all(px(2.0)),
-                                border_radius: BorderRadius::all(px(18.0)),
-                                margin: UiRect::top(px(4.0)),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgba(0.11, 0.14, 0.2, 0.96)),
-                            BorderColor::all(Color::srgb(0.31, 0.4, 0.55)),
-                        ))
-                        .with_children(|name_box| {
-                            name_box.spawn((
-                                NameValueText,
-                                Text::new("> _"),
-                                make_font(&fonts.pixel_regular, 20.0),
-                                TextColor(Color::srgb(0.97, 0.97, 0.99)),
-                            ));
-                        });
-
-                    // action row
-                    prompt
-                        .spawn((Node {
-                            width: percent(100.0),
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            column_gap: px(14.0),
-                            margin: UiRect::top(px(6.0)),
-                            ..default()
-                        },))
-                        .with_children(|row| {
-                            spawn_menu_button(
-                                row,
-                                fonts,
-                                "Back",
-                                MenuAction::BackToMenu,
-                                Some(140.0),
-                            );
-                            spawn_menu_button(
-                                row,
-                                fonts,
-                                "Start Game",
-                                MenuAction::ConfirmName,
-                                Some(220.0),
-                            );
-                        });
-
-                    prompt.spawn((
-                        Text::new("Press Enter to start or Esc to return."),
-                        make_font(&fonts.pixel_regular, 12.0),
-                        TextColor(Color::srgb(0.62, 0.68, 0.76)),
-                    ));
-                });
-        });
-}
-
-fn spawn_controls_frame(panel: &mut ChildSpawnerCommands, fonts: &GameFonts) {
-    panel
-        .spawn((
-            ControlsFrame,
-            Visibility::Hidden,
-            Node {
-                width: percent(100.0),
-                height: percent(100.0),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-        ))
-        .with_children(|frame| {
-            frame
-                .spawn((
-                    Node {
-                        width: px(520.0),
-                        max_width: percent(90.0),
-                        padding: UiRect::all(px(36.0)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(12.0),
-                        border: UiRect::all(px(2.0)),
-                        border_radius: BorderRadius::all(px(28.0)),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.05, 0.06, 0.1, 0.92)),
-                    BorderColor::all(Color::srgba(0.95, 0.93, 0.88, 0.14)),
-                ))
-                .with_children(|card| {
-                    card.spawn((
-                        Text::new("CONTROLS"),
-                        make_font(&fonts.pixel_bold, 28.0),
-                        TextColor(Color::srgb(0.99, 0.98, 0.96)),
-                    ));
-
-                    // divider
-                    card.spawn((
-                        Node {
-                            width: percent(100.0),
-                            height: px(1.0),
-                            margin: UiRect::vertical(px(8.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.95, 0.93, 0.88, 0.15)),
-                    ));
-
-                    let rows: &[(&str, &str)] = &[
-                        ("Move",         "A / D   or   ← →"),
-                        ("Jump",         "Space   or   W"),
-                        ("Slash",        "Left Click   or   H"),
-                        ("Aim Sword",    "Hold Right Click"),
-                        ("Throw Sword",  "Release Right Click"),
-                        ("Pick Up",      "Walk near the sword"),
-                    ];
-
-                    for (action, binding) in rows {
-                        spawn_control_row(card, fonts, action, binding);
-                    }
-
-                    // back button
-                    card.spawn((Node {
-                        margin: UiRect::top(px(18.0)),
-                        width: percent(100.0),
-                        ..default()
-                    },))
-                    .with_children(|btn_row| {
-                        spawn_menu_button(btn_row, fonts, "Back", MenuAction::BackToMenu, None);
-                    });
-                });
-        });
-}
-
-fn spawn_control_row(
-    parent: &mut ChildSpawnerCommands,
-    fonts: &GameFonts,
-    action: &str,
-    binding: &str,
-) {
+fn spawn_right_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
     parent
         .spawn((Node {
-            width: percent(100.0),
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
+            width: Val::Px(420.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(28.0)),
+            row_gap: Val::Px(12.0),
+            border: UiRect::all(Val::Px(1.0)),
+            border_radius: BorderRadius::all(Val::Px(20.0)),
             ..default()
-        },))
-        .with_children(|row| {
-            row.spawn((
-                Text::new(action.to_owned()),
-                make_font(&fonts.pixel_bold, 18.0),
-                TextColor(Color::srgb(0.93, 0.88, 0.76)),
+        },
+        BackgroundColor(Color::srgba(0.02, 0.03, 0.06, 0.5)),
+        BorderColor::all(Color::srgba(0.95, 0.93, 0.88, 0.08)),
+        ))
+        .with_children(|col| {
+            col.spawn((
+                Text::new("LEADERBOARD"),
+                TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
+                TextColor(Color::srgb(0.95, 0.90, 0.60)),
             ));
-            row.spawn((
-                Text::new(binding.to_owned()),
-                make_font(&fonts.pixel_regular, 17.0),
-                TextColor(Color::srgb(0.82, 0.88, 0.96)),
+
+            col.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(1.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.95, 0.93, 0.88, 0.12)),
+            ));
+
+            col.spawn((
+                LeaderboardDisplayText,
+                Text::new(if cfg!(target_arch = "wasm32") { "  Leaderboard coming soon" } else { "  Loading..." }),
+                TextFont { font: fonts.pixel_regular.clone(), font_size: 16.0, ..default() },
+                TextColor(Color::srgb(0.82, 0.86, 0.95)),
             ));
         });
 }
@@ -580,44 +424,32 @@ fn spawn_menu_button(
     fonts: &GameFonts,
     label: &str,
     action: MenuAction,
-    fixed_width: Option<f32>,
 ) {
-    let width = fixed_width.map(px).unwrap_or_else(|| percent(100.0));
     let (default_bg, default_border, default_label) = action.colors(Interaction::None);
-
     parent
         .spawn((
             MenuButton { action },
             Button,
             Node {
-                width,
-                height: action.height(),
+                width: Val::Percent(100.0),
+                height: Val::Px(62.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                border: UiRect::all(px(2.0)),
-                padding: UiRect::axes(px(16.0), px(8.0)),
-                border_radius: BorderRadius::all(px(22.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(18.0)),
                 ..default()
             },
             BackgroundColor(default_bg),
             BorderColor::all(default_border),
         ))
-        .with_children(|button| {
-            button.spawn((
+        .with_children(|btn| {
+            btn.spawn((
                 MenuButtonLabel,
                 Text::new(label),
-                make_font(&fonts.pixel_bold, action.font_size()),
+                TextFont { font: fonts.pixel_bold.clone(), font_size: 30.0, ..default() },
                 TextColor(default_label),
             ));
         });
-}
-
-fn make_font(font: &Handle<Font>, size: f32) -> TextFont {
-    TextFont {
-        font: font.clone(),
-        font_size: size,
-        ..default()
-    }
 }
 
 // ── systems ───────────────────────────────────────────────────────────────────
@@ -631,10 +463,10 @@ fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenuU
 fn capture_name_input(
     mut keyboard_input_reader: MessageReader<KeyboardInput>,
     mut pending_name: ResMut<PendingPlayerName>,
-    mut menu_view: ResMut<MenuViewState>,
     mut player_profile: ResMut<PlayerProfile>,
     mut campaign: ResMut<CampaignState>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut fade: ResMut<MenuFadeOut>,
+    mut controls_overlay: Query<&mut Visibility, With<MenuControlsOverlay>>,
 ) {
     for keyboard_input in keyboard_input_reader.read() {
         if keyboard_input.state != ButtonState::Pressed {
@@ -642,30 +474,22 @@ fn capture_name_input(
         }
 
         match (&keyboard_input.logical_key, &keyboard_input.text) {
-            (Key::Enter, _) => match menu_view.frame {
-                MenuFrame::NameEntry => start_new_game(
-                    &pending_name.value,
-                    &mut player_profile,
-                    &mut campaign,
-                    &mut next_state,
-                ),
-                MenuFrame::Landing => menu_view.go_to_name_entry(),
-                MenuFrame::Controls => {}
-            },
-            (Key::Escape, _) => match menu_view.frame {
-                MenuFrame::NameEntry | MenuFrame::Controls => menu_view.go_to_landing(),
-                MenuFrame::Landing => {}
-            },
-            (Key::Backspace, _) => {
-                if menu_view.frame == MenuFrame::NameEntry {
-                    pending_name.value.pop();
+            (Key::Escape, _) => {
+                if let Ok(mut vis) = controls_overlay.single_mut() {
+                    *vis = Visibility::Hidden;
                 }
             }
+            (Key::Enter, _) => start_new_game(
+                &pending_name.value,
+                &mut player_profile,
+                &mut campaign,
+                &mut fade,
+            ),
+            (Key::Backspace, _) => {
+                pending_name.value.pop();
+            }
             (_, Some(inserted_text)) => {
-                if menu_view.frame == MenuFrame::NameEntry
-                    && inserted_text.chars().all(is_printable_char)
-                    && pending_name.value.len() < 18
-                {
+                if inserted_text.chars().all(is_printable_char) && pending_name.value.len() < 18 {
                     pending_name.value.push_str(inserted_text);
                 }
             }
@@ -684,60 +508,22 @@ fn sync_name_text(
     let Ok(mut text) = query.single_mut() else {
         return;
     };
-    let display = if pending_name.value.is_empty() {
-        "_".into()
-    } else {
-        pending_name.value.clone()
-    };
+    let display = if pending_name.value.is_empty() { "_".into() } else { pending_name.value.clone() };
     **text = format!("> {display}");
 }
 
-fn sync_footer_text(
-    menu_view: Res<MenuViewState>,
-    mut query: Query<&mut Text, With<FooterMessageText>>,
+#[cfg(not(target_arch = "wasm32"))]
+fn sync_leaderboard_text(
+    lb: Res<LeaderboardResource>,
+    mut query: Query<&mut Text, With<LeaderboardDisplayText>>,
 ) {
-    if !menu_view.is_changed() {
+    if !lb.is_changed() {
         return;
     }
     let Ok(mut text) = query.single_mut() else {
         return;
     };
-    **text = menu_view.footer_message.clone();
-}
-
-fn sync_menu_frame_visibility(
-    menu_view: Res<MenuViewState>,
-    mut landing_q: Query<
-        &mut Visibility,
-        (With<LandingFrame>, Without<NameEntryFrame>, Without<ControlsFrame>),
-    >,
-    mut name_q: Query<
-        &mut Visibility,
-        (With<NameEntryFrame>, Without<LandingFrame>, Without<ControlsFrame>),
-    >,
-    mut controls_q: Query<
-        &mut Visibility,
-        (With<ControlsFrame>, Without<LandingFrame>, Without<NameEntryFrame>),
-    >,
-) {
-    if !menu_view.is_changed() {
-        return;
-    }
-    let Ok(mut landing_vis) = landing_q.single_mut() else {
-        return;
-    };
-    let Ok(mut name_vis) = name_q.single_mut() else {
-        return;
-    };
-    let Ok(mut controls_vis) = controls_q.single_mut() else {
-        return;
-    };
-
-    (*landing_vis, *name_vis, *controls_vis) = match menu_view.frame {
-        MenuFrame::Landing => (Visibility::Visible, Visibility::Hidden, Visibility::Hidden),
-        MenuFrame::NameEntry => (Visibility::Hidden, Visibility::Visible, Visibility::Hidden),
-        MenuFrame::Controls => (Visibility::Hidden, Visibility::Hidden, Visibility::Visible),
-    };
+    **text = leaderboard_text(&lb);
 }
 
 fn handle_menu_buttons(
@@ -753,11 +539,11 @@ fn handle_menu_buttons(
     >,
     mut label_query: Query<&mut TextColor, With<MenuButtonLabel>>,
     pending_name: Res<PendingPlayerName>,
-    mut menu_view: ResMut<MenuViewState>,
     mut player_profile: ResMut<PlayerProfile>,
     mut campaign: ResMut<CampaignState>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut fade: ResMut<MenuFadeOut>,
     mut app_exit: MessageWriter<AppExit>,
+    mut controls_overlay: Query<&mut Visibility, With<MenuControlsOverlay>>,
 ) {
     for (interaction, button, children, mut background, mut border) in &mut interaction_query {
         let (bg, bd, label) = button.action.colors(*interaction);
@@ -775,18 +561,20 @@ fn handle_menu_buttons(
         }
 
         match button.action {
-            MenuAction::Play => menu_view.go_to_name_entry(),
-            MenuAction::Settings => menu_view.go_to_controls(),
-            MenuAction::Quit => {
-                app_exit.write(AppExit::Success);
-            }
-            MenuAction::ConfirmName => start_new_game(
+            MenuAction::Play => start_new_game(
                 &pending_name.value,
                 &mut player_profile,
                 &mut campaign,
-                &mut next_state,
+                &mut fade,
             ),
-            MenuAction::BackToMenu => menu_view.go_to_landing(),
+            MenuAction::Controls => {
+                if let Ok(mut vis) = controls_overlay.single_mut() {
+                    *vis = Visibility::Visible;
+                }
+            }
+            MenuAction::Quit => {
+                app_exit.write(AppExit::Success);
+            }
         }
     }
 }
@@ -795,15 +583,36 @@ fn start_new_game(
     pending_name: &str,
     player_profile: &mut PlayerProfile,
     campaign: &mut CampaignState,
-    next_state: &mut NextState<GameState>,
+    fade: &mut MenuFadeOut,
 ) {
+    if fade.active { return; }
     player_profile.name = if pending_name.trim().is_empty() {
         "Knight".into()
     } else {
         pending_name.trim().into()
     };
     *campaign = CampaignState::default();
-    next_state.set(GameState::InGame);
+    fade.active = true;
+}
+
+fn reset_menu_fade(mut fade: ResMut<MenuFadeOut>) {
+    *fade = MenuFadeOut::default();
+}
+
+fn tick_menu_fade(
+    time: Res<Time>,
+    mut fade: ResMut<MenuFadeOut>,
+    mut bg_query: Query<&mut BackgroundColor, With<MenuFadeOverlay>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if !fade.active { return; }
+    fade.alpha = (fade.alpha + time.delta_secs() * MENU_FADE_SPEED).min(1.0);
+    if let Ok(mut bg) = bg_query.single_mut() {
+        bg.0 = Color::srgba(0.0, 0.0, 0.0, fade.alpha);
+    }
+    if fade.alpha >= 1.0 {
+        next_state.set(GameState::InGame);
+    }
 }
 
 fn is_printable_char(chr: char) -> bool {

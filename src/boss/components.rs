@@ -23,7 +23,7 @@ pub struct BossHp {
     pub max: i32, // used for HP bar ratio
 }
 
-#[derive(Component, PartialEq, Clone)]
+#[derive(Component, PartialEq, Clone, Copy)]
 pub enum BossPhase {
     Chase,
     Windup { dir: Vec2, timer: f32 },

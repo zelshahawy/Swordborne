@@ -115,14 +115,43 @@ pub enum FadePhase {
     #[default]
     Idle,
     FadeOut(f32),
+    Restart,
     FadeIn(f32),
 }
 
 #[derive(Resource, Default)]
 pub struct FadeState {
     pub phase: FadePhase,
-    pub trigger_restart: bool,
-    pub execute_restart: bool,
+}
+
+#[derive(Resource, Default)]
+pub struct RunTimer {
+    pub elapsed_secs: f64,
+    pub running: bool,
+}
+
+impl RunTimer {
+    pub fn start(&mut self) {
+        self.elapsed_secs = 0.0;
+        self.running = true;
+    }
+
+    pub fn stop(&mut self) -> f64 {
+        self.running = false;
+        self.elapsed_secs
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct BossDefeated {
+    pub triggered: bool,
+    pub time_secs: f64,
+}
+
+pub fn format_run_time(secs: f64) -> String {
+    let m = (secs / 60.0) as u64;
+    let s = secs % 60.0;
+    format!("{m}:{s:05.2}")
 }
 
 #[derive(Resource)]

@@ -19,9 +19,10 @@ pub(crate) use components::{
 };
 pub(crate) use logic::{
     animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
-    restart_current_level, sync_level_four_completion_text, sync_level_three_completion_text,
-    sync_level_two_completion_text, sync_level_two_door, trigger_wizard_followup,
-    trigger_wizard_intro, try_advance_level, update_crate_break_shards, update_training_door_visual,
+    execute_level_restart, request_level_restart, sync_level_four_completion_text,
+    sync_level_three_completion_text, sync_level_two_completion_text, sync_level_two_door,
+    trigger_wizard_followup, trigger_wizard_intro, try_advance_level, update_crate_break_shards,
+    update_training_door_visual,
 };
 pub(crate) use scene::{
     frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile, spawn_room_shell,
@@ -108,7 +109,8 @@ impl Plugin for LevelPlugin {
             )
             .add_systems(
                 Update,
-                (restart_current_level,).run_if(in_state(GameState::InGame)),
+                (request_level_restart, execute_level_restart)
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

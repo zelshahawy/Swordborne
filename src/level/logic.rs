@@ -10,7 +10,7 @@ use crate::level::{
     frame_level_camera, level_bounds_for, level_camera_focus_x, spawn_level_scene,
 };
 use crate::player::{Facing, HasSword, Player, PlayerActionState, Velocity};
-use crate::state::{CampaignState, FadePhase, FadeState, LevelId, PlayerHealth, PlayerProfile};
+use crate::state::{BossDefeated, CampaignState, FadePhase, FadeState, LevelId, PlayerHealth, PlayerProfile};
 use crate::sword::{Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordState, SwordTrail};
 
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
@@ -317,10 +317,19 @@ pub(crate) fn try_advance_level(
     }
 }
 
-pub(crate) fn restart_current_level(
+pub(crate) fn request_level_restart(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut fade_state: ResMut<FadeState>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyR) && fade_state.phase == FadePhase::Idle {
+        fade_state.phase = FadePhase::FadeOut(0.0);
+    }
+}
+
+pub(crate) fn execute_level_restart(
+    mut fade_state: ResMut<FadeState>,
     mut player_health: ResMut<PlayerHealth>,
+    mut defeated: ResMut<BossDefeated>,
     mut commands: Commands,
     mut campaign: ResMut<CampaignState>,
     mut dialogue: ResMut<DialogueState>,
@@ -340,31 +349,22 @@ pub(crate) fn restart_current_level(
         Query<&mut Visibility, With<SwordAimReticle>>,
     )>,
 ) {
-    if keyboard.just_pressed(KeyCode::KeyR) && fade_state.phase == FadePhase::Idle {
-        fade_state.phase = FadePhase::FadeOut(0.0);
-        fade_state.trigger_restart = true;
+    if fade_state.phase != FadePhase::Restart {
         return;
     }
+    fade_state.phase = FadePhase::FadeIn(1.0);
 
-    if !fade_state.execute_restart {
-        return;
-    }
-    fade_state.execute_restart = false;
-
-    for entity in &params.p0() {
+    for entity in params.p0().iter() {
         commands.entity(entity).despawn();
     }
-
-    for entity in &params.p1() {
+    for entity in params.p1().iter() {
         commands.entity(entity).despawn();
     }
-
-    if let Ok(mut visibility) = params.p2().single_mut() {
-        *visibility = Visibility::Hidden;
+    if let Ok(mut vis) = params.p2().single_mut() {
+        *vis = Visibility::Hidden;
     }
-
-    if let Ok(mut visibility) = params.p3().single_mut() {
-        *visibility = Visibility::Hidden;
+    if let Ok(mut vis) = params.p3().single_mut() {
+        *vis = Visibility::Hidden;
     }
 
     *dialogue = DialogueState::default();
@@ -372,6 +372,7 @@ pub(crate) fn restart_current_level(
     sword_aim.reset();
     reset_level_progress(&mut campaign);
     *player_health = PlayerHealth::default();
+    *defeated = BossDefeated::default();
 
     frame_level_camera(
         &mut camera_query,
@@ -379,16 +380,7 @@ pub(crate) fn restart_current_level(
         Some(level_bounds_for(campaign.current_level)),
         Some(level_camera_focus_x(campaign.current_level)),
     );
-
-    spawn_level_scene(
-        &mut commands,
-        &art,
-        &fonts,
-        &player_anims,
-        &sword_visuals,
-        &campaign,
-        &profile,
-    );
+    spawn_level_scene(&mut commands, &art, &fonts, &player_anims, &sword_visuals, &campaign, &profile);
 }
 
 pub(crate) fn apply_level_transition(

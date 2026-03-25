@@ -4,7 +4,7 @@ use crate::boss::components::*;
 use crate::fonts::GameFonts;
 use crate::level::{LevelArtHandles, LevelBounds, LevelEntity};
 use crate::player::{GROUND_Y, HasSword, Player};
-use crate::state::{FadePhase, FadeState, PlayerHealth};
+use crate::state::{BossDefeated, FadePhase, FadeState, PlayerHealth, RunTimer};
 use crate::sword::{Sword, SwordState};
 
 const BOSS_MIN_Y: f32 = GROUND_Y + 30.0;
@@ -55,7 +55,7 @@ pub(crate) fn tick_boss(
 
     let boss_max_y = bounds.ceiling_y - BOSS_MAX_Y_OFFSET;
 
-    match phase.clone() {
+    match *phase {
         BossPhase::Dead => {}
 
         BossPhase::Stagger { timer } => {
@@ -195,7 +195,6 @@ pub(crate) fn boss_hit_player(
 
     if player_health.current <= 0 && fade_state.phase == FadePhase::Idle {
         fade_state.phase = FadePhase::FadeOut(0.0);
-        fade_state.trigger_restart = true;
     }
 }
 
@@ -219,7 +218,7 @@ pub(crate) fn tick_player_invincibility(
 }
 
 pub(crate) fn sync_boss_hp_bar(
-    boss_query: Query<&BossHp, With<Boss>>,
+    boss_query: Query<&BossHp, (With<Boss>, Changed<BossHp>)>,
     mut fill_query: Query<&mut Node, With<BossHpFill>>,
 ) {
     let Ok(hp) = boss_query.single() else { return; };
@@ -232,15 +231,20 @@ pub(crate) fn handle_boss_defeat(
     mut commands: Commands,
     boss_query: Query<(Entity, &BossPhase), With<Boss>>,
     mut text_query: Query<&mut Visibility, With<BossDefeatedText>>,
+    mut run_timer: ResMut<RunTimer>,
+    mut defeated: ResMut<BossDefeated>,
 ) {
     let Ok((boss_entity, phase)) = boss_query.single() else { return; };
     if *phase != BossPhase::Dead {
         return;
     }
+    let time_secs = run_timer.stop();
     commands.entity(boss_entity).despawn();
     for mut vis in &mut text_query {
         *vis = Visibility::Visible;
     }
+    defeated.triggered = true;
+    defeated.time_secs = time_secs;
 }
 
 pub(crate) fn sync_player_hp_display(
