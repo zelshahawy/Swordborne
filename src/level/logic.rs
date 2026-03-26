@@ -173,6 +173,49 @@ pub(crate) fn trigger_wizard_followup(
     );
 }
 
+pub(crate) fn trigger_dark_wizard_intro(
+    mut campaign: ResMut<CampaignState>,
+    dialogue: Res<DialogueState>,
+    mut cinematic: ResMut<DialogueCinematicState>,
+    player_profile: Res<PlayerProfile>,
+    portraits: Res<DialoguePortraits>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    if campaign.current_level != LevelId::LevelFive
+        || campaign.wizard_intro_seen
+        || dialogue.active
+        || cinematic.is_active()
+    {
+        return;
+    }
+
+    let Ok(player_transform) = player_query.single() else {
+        return;
+    };
+
+    campaign.wizard_intro_seen = true;
+
+    let knight_name = if player_profile.name.is_empty() {
+        "Knight"
+    } else {
+        player_profile.name.as_str()
+    };
+
+    queue_dialogue(
+        &mut cinematic,
+        "Dark Wizard",
+        vec![
+            format!(
+                "So, {knight_name}... you actually made it this far. Impressive. Foolish, but impressive."
+            ),
+            "No one has ever left my lair with their offer letter. Today will be no exception."
+                .to_string(),
+        ],
+        player_transform.translation + Vec3::new(200.0, 110.0, 0.0),
+        Some(portraits.dark_wizard.clone()),
+    );
+}
+
 pub(crate) fn break_crates(
     mut commands: Commands,
     mut campaign: ResMut<CampaignState>,

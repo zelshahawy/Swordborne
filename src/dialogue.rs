@@ -14,6 +14,7 @@ const BOX_HEIGHT: f32 = 230.0;
 #[derive(Resource)]
 pub struct DialoguePortraits {
     pub wizard: Handle<Image>,
+    pub dark_wizard: Handle<Image>,
     #[allow(dead_code)]
     pub knight: Handle<Image>,
 }
@@ -23,6 +24,7 @@ impl FromWorld for DialoguePortraits {
         let asset_server = world.resource::<AssetServer>().clone();
         Self {
             wizard: asset_server.load("wizard.png"),
+            dark_wizard: asset_server.load("dark_wizard.png"),
             knight: asset_server.load("dungeon/frames/knight_m_idle_anim_f0.png"),
         }
     }

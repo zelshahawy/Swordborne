@@ -52,13 +52,12 @@ impl BlockColor {
 }
 
 pub(crate) fn random_puzzle_sequence() -> Vec<BlockColor> {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_nanos();
+    let mut bytes = [0u8; 8];
+    let _ = getrandom::getrandom(&mut bytes);
+    let seed_raw = u64::from_le_bytes(bytes);
 
     let mut arr = [BlockColor::Green, BlockColor::Red, BlockColor::Blue];
-    let mut seed = nanos as u64 | 1;
+    let mut seed = seed_raw | 1;
 
     for i in (1..3usize).rev() {
         seed ^= seed << 13;

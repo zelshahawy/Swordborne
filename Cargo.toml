@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = "0.18.1"
+bevy = { version = "0.18.1", features = ["webgl2"] }
+getrandom = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mongodb = { version = "2", default-features = false, features = ["sync"] }

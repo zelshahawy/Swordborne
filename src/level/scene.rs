@@ -7,15 +7,16 @@ use crate::level::{
     LevelArtHandles, LevelBounds, LevelEntity, ROOM_CEILING_Y, ROOM_TILE_COLUMNS, ROOM_WALL_LEFT_X,
     ROOM_WALL_RIGHT_X, ROOM_WALL_ROWS, TILE_SCALE, TILE_WORLD_SIZE,
 };
+
 use crate::player::{GROUND_Y, Player};
 
-const LEVEL_CAMERA_Y: f32 = 0.0;
-const LEVEL_CAMERA_SCALE: f32 = 0.9;
+const LEVEL_CAMERA_Y: f32 = 90.0;
+const LEVEL_CAMERA_SCALE: f32 = 0.77;
 const LEVEL_CAMERA_SMOOTHING: f32 = 8.0;
 const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 8.0;
-const BACKGROUND_SIDE_PADDING: isize = 6;
-const BACKGROUND_ROWS_BELOW_GROUND: usize = 7;
-const BACKGROUND_ROWS_ABOVE_CEILING: usize = 4;
+const BACKGROUND_SIDE_PADDING: isize = 10;
+const BACKGROUND_ROWS_BELOW_GROUND: usize = 12;
+const BACKGROUND_ROWS_ABOVE_CEILING: usize = 3;
 
 pub(crate) fn frame_level_camera(
     camera_query: &mut Query<(&mut Transform, &mut Projection), With<Camera2d>>,
@@ -106,10 +107,29 @@ pub(crate) fn spawn_room_shell(
         Transform::from_xyz(0.0, GROUND_Y + 120.0, -26.0),
     ));
 
+    // Sky — anchored at ROOM_CEILING_Y, z=-13 so background brick tiles (z=-12) render in
+    // front of it. The BACKGROUND_ROWS_ABOVE_CEILING brick rows overlap the sky naturally,
+    // eliminating any seam. Height 4000 covers from ceiling to well past screen top.
+    commands.spawn((
+        LevelEntity,
+        Sprite {
+            image: art.sky.clone(),
+            custom_size: Some(Vec2::new(4000.0, 4000.0)),
+            image_mode: SpriteImageMode::Tiled {
+                tile_x: true,
+                tile_y: true,
+                stretch_value: 1.0,
+            },
+            ..default()
+        },
+        Transform::from_xyz(0.0, ROOM_CEILING_Y + 2000.0, -13.0),
+    ));
+
     spawn_background_tiles(commands, art);
     spawn_floor_strip(commands, art);
     spawn_side_walls(commands, art);
     spawn_decor(commands, art);
+    spawn_underground_decor(commands, art);
     spawn_level_label(commands, fonts, level_label);
 }
 
@@ -216,7 +236,7 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
         spawn_bottom_anchored_sprite(
             commands,
             texture,
-            Vec3::new(x, ROOM_CEILING_Y + 114.0, 1.0),
+            Vec3::new(x, ROOM_CEILING_Y + 220.0, 1.0),
             TILE_SCALE,
         );
     }
@@ -244,6 +264,47 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
             texture,
             Vec3::new(x, GROUND_Y + TILE_WORLD_SIZE * 2.5, -8.0),
         );
+    }
+}
+
+fn spawn_underground_decor(commands: &mut Commands, art: &LevelArtHandles) {
+    // Skulls scattered at varying depths — give the underground a burial feel
+    for (x, depth) in [
+        (-560.0, 1.5_f32),
+        (-320.0, 3.0),
+        (-80.0, 2.0),
+        (120.0, 4.0),
+        (350.0, 2.5),
+        (560.0, 1.5),
+        (-200.0, 5.0),
+        (200.0, 5.5),
+    ] {
+        spawn_centered_tile(
+            commands,
+            art.skull.clone(),
+            Vec3::new(x, GROUND_Y - TILE_WORLD_SIZE * depth, 1.0),
+        );
+    }
+
+    // Wall holes embedded in the underground walls — suggest hidden passages
+    for (x, depth, tex) in [
+        (-100.0, 4.5_f32, art.wall_hole_1.clone()),
+        (340.0, 3.0, art.wall_hole_2.clone()),
+    ] {
+        spawn_centered_tile(
+            commands,
+            tex,
+            Vec3::new(x, GROUND_Y - TILE_WORLD_SIZE * depth, -1.0),
+        );
+    }
+
+    // edge_down tiles form a ragged cave-bottom border at ~7 rows below ground
+    let edge_y = GROUND_Y - TILE_WORLD_SIZE * 7.0;
+    let start_col = -BACKGROUND_SIDE_PADDING;
+    let end_col = ROOM_TILE_COLUMNS as isize + BACKGROUND_SIDE_PADDING;
+    for col in start_col..end_col {
+        let x = room_floor_x_signed(col);
+        spawn_centered_tile(commands, art.edge_down.clone(), Vec3::new(x, edge_y, -1.0));
     }
 }
 

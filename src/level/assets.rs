@@ -36,6 +36,7 @@ pub(crate) struct LevelArtHandles {
     pub flask_big_blue: Handle<Image>,
     pub flask_big_red: Handle<Image>,
     pub wizard_idle_frames: [Handle<Image>; WIZARD_IDLE_FRAMES],
+    pub sky: Handle<Image>,
 }
 
 pub(crate) fn load_level_art(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -96,5 +97,6 @@ pub(crate) fn load_level_art(mut commands: Commands, asset_server: Res<AssetServ
             asset_server.load("dungeon/frames/wizzard_m_idle_anim_f2.png"),
             asset_server.load("dungeon/frames/wizzard_m_idle_anim_f3.png"),
         ],
+        sky: asset_server.load("sky_two.png"),
     });
 }
