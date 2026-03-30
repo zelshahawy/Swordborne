@@ -4,7 +4,8 @@ use bevy::window::PrimaryWindow;
 use crate::dialogue::{DialogueCinematicState, DialoguePortraits, DialogueState, queue_dialogue};
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableCrate, CrateBreakShard, CrateReward, LevelArtHandles, LevelBounds, LevelEntity,
+    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, LevelArtHandles, LevelBounds,
+    LevelEntity,
     LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
     PendingLevelTransition, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
     frame_level_camera, level_bounds_for, level_camera_focus_x, spawn_level_scene,
@@ -15,6 +16,7 @@ use crate::sword::{Sword, SwordAimGuide, SwordAimReticle, SwordAimState, SwordSt
 
 const WIZARD_FOLLOWUP_TRIGGER_X: f32 = -40.0;
 const CRATE_BREAK_RADIUS: f32 = 86.0;
+const CHEST_OPEN_RADIUS: f32 = 86.0;
 const CRATE_SHARD_LIFETIME: f32 = 0.42;
 const CRATE_SHARD_GRAVITY: f32 = -980.0;
 
@@ -274,6 +276,55 @@ pub(crate) fn break_crates(
                 campaign.level_two_goal_complete = true;
             }
         }
+    }
+}
+
+pub(crate) fn open_chests(
+    art: Res<LevelArtHandles>,
+    mut chest_query: Query<(&Transform, &mut Sprite, &mut BreakableChest)>,
+    player_query: Query<(&Transform, &Facing, &HasSword, &PlayerActionState), With<Player>>,
+    sword_query: Query<(&Transform, &SwordState), With<Sword>>,
+) {
+    let player_attack = player_query.single().ok();
+
+    for (chest_transform, mut chest_sprite, mut chest_info) in &mut chest_query {
+        if chest_info.opened {
+            continue;
+        }
+
+        let mut opened = false;
+
+        if let Some((player_transform, facing, has_sword, action_state)) = player_attack
+            && has_sword.0
+            && *action_state == PlayerActionState::Slash
+        {
+            let delta = chest_transform.translation - player_transform.translation;
+            opened = delta.x.abs() <= 120.0 && delta.y.abs() <= 96.0 && delta.x * facing.0 >= 0.0;
+        }
+
+        if !opened {
+            for (sword_transform, sword_state) in &sword_query {
+                if *sword_state == SwordState::Equipped {
+                    continue;
+                }
+
+                if sword_transform
+                    .translation
+                    .distance(chest_transform.translation)
+                    <= CHEST_OPEN_RADIUS
+                {
+                    opened = true;
+                    break;
+                }
+            }
+        }
+
+        if !opened {
+            continue;
+        }
+
+        chest_info.opened = true;
+        *chest_sprite = Sprite::from_image(art.chest_open.clone());
     }
 }
 

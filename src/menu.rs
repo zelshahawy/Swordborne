@@ -16,8 +16,7 @@ use crate::leaderboard::{LeaderboardResource, leaderboard_text};
 pub struct MenuPlugin;
 
 const MENU_FADE_SPEED: f32 = 3.0;
-
-// ── resources ────────────────────────────────────────────────────────────────
+const MAX_PLAYER_NAME_CHARS: usize = 25;
 
 #[derive(Resource, Default)]
 struct PendingPlayerName {
@@ -43,8 +42,6 @@ impl FromWorld for MenuArtHandles {
     }
 }
 
-// ── components ───────────────────────────────────────────────────────────────
-
 #[derive(Component)]
 struct MainMenuUi;
 
@@ -67,8 +64,6 @@ struct MenuButtonLabel;
 
 #[derive(Component)]
 struct MenuControlsOverlay;
-
-// ── enums ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MenuAction {
@@ -100,8 +95,6 @@ impl MenuAction {
     }
 }
 
-// ── plugin ───────────────────────────────────────────────────────────────────
-
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PendingPlayerName>()
@@ -123,8 +116,6 @@ impl Plugin for MenuPlugin {
         );
     }
 }
-
-// ── spawn ─────────────────────────────────────────────────────────────────────
 
 fn spawn_main_menu(
     mut commands: Commands,
@@ -372,7 +363,7 @@ fn spawn_left_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
             });
 
             col.spawn((
-                Text::new("Press Enter to play"),
+                Text::new("Enter name (1-25 chars), then press Enter"),
                 TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
                 TextColor(Color::srgba(0.72, 0.77, 0.85, 0.7)),
             ));
@@ -451,8 +442,6 @@ fn spawn_menu_button(
         });
 }
 
-// ── systems ───────────────────────────────────────────────────────────────────
-
 fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenuUi>>) {
     for entity in &query {
         commands.entity(entity).despawn();
@@ -488,8 +477,13 @@ fn capture_name_input(
                 pending_name.value.pop();
             }
             (_, Some(inserted_text)) => {
-                if inserted_text.chars().all(is_printable_char) && pending_name.value.len() < 18 {
-                    pending_name.value.push_str(inserted_text);
+                let mut current_len = pending_name.value.chars().count();
+                for chr in inserted_text.chars() {
+                    if !is_printable_char(chr) || current_len >= MAX_PLAYER_NAME_CHARS {
+                        continue;
+                    }
+                    pending_name.value.push(chr);
+                    current_len += 1;
                 }
             }
             _ => {}
@@ -584,11 +578,11 @@ fn start_new_game(
     fade: &mut MenuFadeOut,
 ) {
     if fade.active { return; }
-    player_profile.name = if pending_name.trim().is_empty() {
-        "Knight".into()
-    } else {
-        pending_name.trim().into()
-    };
+    let trimmed_name = pending_name.trim();
+    if trimmed_name.is_empty() {
+        return;
+    }
+    player_profile.name = trimmed_name.chars().take(MAX_PLAYER_NAME_CHARS).collect();
     *campaign = CampaignState::default();
     fade.active = true;
 }

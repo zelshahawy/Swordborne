@@ -12,13 +12,13 @@ mod spawn;
 
 pub(crate) use assets::{LevelArtHandles, load_level_art};
 pub(crate) use components::{
-    BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity,
+    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity,
     LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
     PendingLevelTransition, SwordBlocker, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer,
     WizardNpc,
 };
 pub(crate) use logic::{
-    animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
+    animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level, open_chests,
     execute_level_restart, request_level_restart, sync_level_four_completion_text,
     sync_level_three_completion_text, sync_level_two_completion_text, sync_level_two_door,
     trigger_dark_wizard_intro, trigger_wizard_followup, trigger_wizard_intro, try_advance_level,
@@ -115,6 +115,7 @@ impl Plugin for LevelPlugin {
                     trigger_wizard_followup,
                     trigger_dark_wizard_intro,
                     break_crates,
+                    open_chests,
                     update_training_door_visual,
                     sync_level_two_door,
                     sync_level_two_completion_text,

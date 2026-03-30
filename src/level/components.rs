@@ -48,6 +48,11 @@ pub(crate) struct BreakableCrate {
     pub reward: CrateReward,
 }
 
+#[derive(Component)]
+pub(crate) struct BreakableChest {
+    pub opened: bool,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CrateReward {
     OpenTrainingDoor,

@@ -7,7 +7,7 @@ use crate::boss::{
 };
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X, LEVEL_FIVE_PLAYER_START_X,
+    BreakableChest, BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X, LEVEL_FIVE_PLAYER_START_X,
     LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
     LEVEL_FOUR_GREEN_X, LEVEL_FOUR_PLAYER_START_X, LEVEL_FOUR_RED_A_X, LEVEL_FOUR_RED_B_X,
     LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
@@ -146,12 +146,7 @@ fn spawn_level_one(
         TILE_SCALE,
     );
 
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.chest_closed.clone(),
-        Vec3::new(LEVEL_ONE_TUTORIAL_X - 80.0, GROUND_Y, 4.0),
-        TILE_SCALE,
-    );
+    spawn_chest(commands, art, Vec3::new(LEVEL_ONE_TUTORIAL_X - 80.0, GROUND_Y, 4.0));
 
     spawn_bottom_anchored_sprite(
         commands,
@@ -166,6 +161,18 @@ fn spawn_level_one(
         Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y, 4.0),
         CrateReward::OpenTrainingDoor,
     );
+    commands.spawn((
+        LevelEntity,
+        Text2d::new("Left Click to slash the crate."),
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 12.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.91, 0.94, 0.98)),
+        TextLayout::new_with_justify(Justify::Center),
+        Transform::from_xyz(LEVEL_ONE_CRATE_X, GROUND_Y + 112.0, 4.0),
+    ));
     spawn_training_door(
         commands,
         art,
@@ -210,12 +217,7 @@ fn spawn_level_two(
         Vec3::new(-350.0, GROUND_Y, 4.0),
         TILE_SCALE,
     );
-    spawn_bottom_anchored_sprite(
-        commands,
-        art.chest_closed.clone(),
-        Vec3::new(330.0, GROUND_Y, 4.0),
-        TILE_SCALE,
-    );
+    spawn_chest(commands, art, Vec3::new(330.0, GROUND_Y, 4.0));
 
     spawn_training_door(
         commands,
@@ -234,7 +236,7 @@ fn spawn_level_two(
     commands.spawn((
         LevelEntity,
         Text2d::new(
-            "Left Click to slash.\nHold Right Click to aim the sword.\nRelease to shatter the crate above.",
+            "Hold Right Click to aim the sword.\nRelease to shatter the crate above.",
         ),
         TextFont {
             font: fonts.pixel_regular.clone(),
@@ -314,6 +316,16 @@ fn spawn_breakable_crate(
         LevelEntity,
         BreakableCrate { reward },
         Sprite::from_image(art.crate_texture.clone()),
+        Anchor::BOTTOM_CENTER,
+        Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
+    ));
+}
+
+fn spawn_chest(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) {
+    commands.spawn((
+        LevelEntity,
+        BreakableChest { opened: false },
+        Sprite::from_image(art.chest_closed.clone()),
         Anchor::BOTTOM_CENTER,
         Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
     ));
