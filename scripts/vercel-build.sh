@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! command -v rustup >/dev/null 2>&1 || ! command -v cargo >/dev/null 2>&1; then
+  echo "Rust toolchain not found. Installing rustup..."
+  if command -v curl >/dev/null 2>&1; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- https://sh.rustup.rs | sh -s -- -y --profile minimal
+  else
+    echo "Missing curl/wget to install rustup." >&2
+    exit 1
+  fi
+fi
+
+export PATH="$HOME/.cargo/bin:$PATH"
+
 echo "Installing wasm target..."
 rustup target add wasm32-unknown-unknown
 
