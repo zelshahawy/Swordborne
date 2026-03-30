@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use crate::fonts::GameFonts;
 use crate::state::{BossDefeated, GameState, format_run_time};
 
-#[cfg(not(target_arch = "wasm32"))]
 use crate::leaderboard::LeaderboardResource;
 
 pub struct VictoryPlugin;
@@ -26,7 +25,6 @@ impl Plugin for VictoryPlugin {
                     .run_if(in_state(GameState::InGame)),
             );
 
-        #[cfg(not(target_arch = "wasm32"))]
         app.add_systems(
             Update,
             sync_rank_text.run_if(in_state(GameState::InGame)),
@@ -101,7 +99,7 @@ fn spawn_victory_on_defeat(
                 card.spawn((
                     VictoryOverlay,
                     VictoryRankText,
-                    Text::new(if cfg!(target_arch = "wasm32") { "" } else { "Computing rank..." }),
+                    Text::new("Computing rank..."),
                     TextFont { font: fonts.pixel_regular.clone(), font_size: 17.0, ..default() },
                     TextColor(Color::srgb(0.72, 0.77, 0.90)),
                 ));
@@ -145,7 +143,6 @@ fn spawn_victory_on_defeat(
         });
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn sync_rank_text(
     lb: Res<LeaderboardResource>,
     mut query: Query<&mut Text, With<VictoryRankText>>,
@@ -163,14 +160,12 @@ fn handle_return_button(
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<ReturnToMenuButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
     mut defeated: ResMut<BossDefeated>,
-    #[cfg(not(target_arch = "wasm32"))]
     mut lb: ResMut<LeaderboardResource>,
 ) {
     for interaction in &interaction_query {
         if *interaction == Interaction::Pressed {
             defeated.triggered = false;
-            #[cfg(not(target_arch = "wasm32"))]
-            { lb.rank = None; }
+            lb.rank = None;
             next_state.set(GameState::MainMenu);
         }
     }

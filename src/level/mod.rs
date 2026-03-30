@@ -44,7 +44,7 @@ pub(crate) const ROOM_WALL_LEFT_X: f32 = -768.0;
 pub(crate) const ROOM_WALL_RIGHT_X: f32 = 768.0;
 pub(crate) const ROOM_PLAYER_LEFT_X: f32 = -720.0;
 pub(crate) const ROOM_PLAYER_RIGHT_X: f32 = 720.0;
-pub(crate) const ROOM_CEILING_Y: f32 = GROUND_Y + 380.0;
+pub(crate) const ROOM_CEILING_Y: f32 = GROUND_Y + 300.0;
 pub(crate) const LEVEL_ONE_PLAYER_START_X: f32 = -676.0;
 pub(crate) const LEVEL_ONE_DOOR_X: f32 = 680.0;
 pub(crate) const LEVEL_ONE_WIZARD_X: f32 = -352.0;
@@ -66,10 +66,6 @@ pub(crate) const LEVEL_THREE_GREEN_X: f32 = 300.0;
 pub(crate) const LEVEL_THREE_RED_X: f32 = -100.0;
 pub(crate) const LEVEL_THREE_BLUE_X: f32 = -450.0;
 
-// Level 4 – "The Vault": 5-step sequence on elevated platforms
-// Sequence (fixed): Blue → Red → Green → Red → Blue
-// Blue blocks are ground-level (melee-accessible); Red and Green are on raised
-// platforms that the player can only hit with a thrown sword.
 pub(crate) const LEVEL_FOUR_PLAYER_START_X: f32 = -620.0;
 pub(crate) const LEVEL_FOUR_DOOR_X: f32 = 650.0;
 pub(crate) const LEVEL_FOUR_BLUE_A_X: f32 = -530.0; // ground, far left

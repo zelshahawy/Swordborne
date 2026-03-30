@@ -13,7 +13,6 @@ mod state;
 mod sword;
 mod victory;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod leaderboard;
 
 use boss::BossPlugin;
@@ -29,7 +28,6 @@ use state::GameState;
 use sword::SwordPlugin;
 use victory::VictoryPlugin;
 
-#[cfg(not(target_arch = "wasm32"))]
 use leaderboard::LeaderboardPlugin;
 
 fn main() {
@@ -66,7 +64,6 @@ fn main() {
         VictoryPlugin,
     ));
 
-    #[cfg(not(target_arch = "wasm32"))]
     app.add_plugins(LeaderboardPlugin);
 
     app.run();

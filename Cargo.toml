@@ -6,13 +6,18 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.18.1", features = ["webgl2"] }
 getrandom = "0.2"
+serde_json = "1"
+# base reqwest — no TLS (WASM uses browser fetch, TLS added per-platform below)
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-mongodb = { version = "2", default-features = false, features = ["sync"] }
+# native: add blocking client + TLS (Cargo merges these features with the base above)
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 dotenvy = "0.15"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen-futures = "0.4"
 
 [profile.dev]
 opt-level = 1

@@ -11,7 +11,6 @@ use bevy::{
 use crate::fonts::GameFonts;
 use crate::state::{CampaignState, GameState, PlayerProfile};
 
-#[cfg(not(target_arch = "wasm32"))]
 use crate::leaderboard::{LeaderboardResource, leaderboard_text};
 
 pub struct MenuPlugin;
@@ -118,7 +117,6 @@ impl Plugin for MenuPlugin {
                     .run_if(in_state(GameState::MainMenu)),
             );
 
-        #[cfg(not(target_arch = "wasm32"))]
         app.add_systems(
             Update,
             sync_leaderboard_text.run_if(in_state(GameState::MainMenu)),
@@ -369,6 +367,7 @@ fn spawn_left_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
             .with_children(|buttons| {
                 spawn_menu_button(buttons, fonts, "Play", MenuAction::Play);
                 spawn_menu_button(buttons, fonts, "Controls", MenuAction::Controls);
+                #[cfg(not(target_arch = "wasm32"))]
                 spawn_menu_button(buttons, fonts, "Quit", MenuAction::Quit);
             });
 
@@ -412,7 +411,7 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
 
             col.spawn((
                 LeaderboardDisplayText,
-                Text::new(if cfg!(target_arch = "wasm32") { "  Leaderboard coming soon" } else { "  Loading..." }),
+                Text::new("  Loading..."),
                 TextFont { font: fonts.pixel_regular.clone(), font_size: 16.0, ..default() },
                 TextColor(Color::srgb(0.82, 0.86, 0.95)),
             ));
@@ -512,7 +511,6 @@ fn sync_name_text(
     **text = format!("> {display}");
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn sync_leaderboard_text(
     lb: Res<LeaderboardResource>,
     mut query: Query<&mut Text, With<LeaderboardDisplayText>>,
