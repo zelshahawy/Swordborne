@@ -11,7 +11,7 @@ use crate::level::{
 use crate::player::{GROUND_Y, Player};
 
 const LEVEL_CAMERA_Y: f32 = 90.0;
-const LEVEL_CAMERA_SCALE: f32 = 0.77;
+const LEVEL_CAMERA_SCALE: f32 = 1.2;
 const LEVEL_CAMERA_SMOOTHING: f32 = 8.0;
 const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 8.0;
 const BACKGROUND_SIDE_PADDING: isize = 10;
