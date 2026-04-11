@@ -343,7 +343,7 @@ fn run_dialogue_cinematic(
         cinematic.target_scale = cinematic.base_scale * DIALOGUE_TARGET_SCALE;
         cinematic.target_translation = Vec3::new(
             cinematic.focus.x,
-            cinematic.focus.y,
+            cinematic.base_translation.y,
             cinematic.base_translation.z,
         );
         cinematic.camera_captured = true;

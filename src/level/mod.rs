@@ -18,8 +18,8 @@ pub(crate) use components::{
     WizardNpc,
 };
 pub(crate) use logic::{
-    animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level, open_chests,
-    execute_level_restart, request_level_restart, sync_level_four_completion_text,
+    animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
+    execute_level_restart, open_chests, request_level_restart, sync_level_four_completion_text,
     sync_level_three_completion_text, sync_level_two_completion_text, sync_level_two_door,
     trigger_dark_wizard_intro, trigger_wizard_followup, trigger_wizard_intro, try_advance_level,
     update_crate_break_shards, update_training_door_visual,
@@ -74,7 +74,7 @@ pub(crate) const LEVEL_FOUR_RED_A_X: f32 = -240.0; // elevated left platform
 pub(crate) const LEVEL_FOUR_GREEN_X: f32 = 0.0; // elevated center platform
 pub(crate) const LEVEL_FOUR_RED_B_X: f32 = 240.0; // elevated right platform
 pub(crate) const LEVEL_FIVE_PLAYER_START_X: f32 = -580.0;
-pub(crate) const LEVEL_FIVE_BOSS_START_X: f32 = 380.0;
+pub(crate) const LEVEL_FIVE_BOSS_START_X: f32 = 200.0;
 
 impl Plugin for LevelPlugin {
     fn build(&self, app: &mut App) {

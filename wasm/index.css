@@ -42,7 +42,7 @@ canvas {
 #fullscreen-btn {
     position: absolute;
     top: 0.75rem;
-    right: 0.75rem;
+    left: 0.75rem;
     background: rgba(255,255,255,0.15);
     border: 2px solid rgba(255,255,255,0.35);
     border-radius: 8px;
