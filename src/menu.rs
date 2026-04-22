@@ -106,7 +106,13 @@ impl Plugin for MenuPlugin {
             .add_systems(OnExit(GameState::MainMenu), despawn_main_menu)
             .add_systems(
                 Update,
-                (capture_name_input, sync_name_text, handle_menu_buttons, tick_menu_fade)
+                (
+                    ensure_main_menu_present,
+                    capture_name_input,
+                    sync_name_text,
+                    handle_menu_buttons,
+                    tick_menu_fade,
+                )
                     .run_if(in_state(GameState::MainMenu)),
             );
 
@@ -115,6 +121,20 @@ impl Plugin for MenuPlugin {
             sync_leaderboard_text.run_if(in_state(GameState::MainMenu)),
         );
     }
+}
+
+fn ensure_main_menu_present(
+    menu_query: Query<Entity, With<MainMenuUi>>,
+    commands: Commands,
+    art: Res<MenuArtHandles>,
+    fonts: Res<GameFonts>,
+    pending_name: ResMut<PendingPlayerName>,
+) {
+    if !menu_query.is_empty() {
+        return;
+    }
+
+    spawn_main_menu(commands, art, fonts, pending_name);
 }
 
 fn spawn_main_menu(

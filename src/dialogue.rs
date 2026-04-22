@@ -10,6 +10,7 @@ const DIALOGUE_ZOOM_OUT_DURATION: f32 = 0.28;
 const DIALOGUE_TARGET_SCALE: f32 = 0.78;
 const PORTRAIT_PANEL_WIDTH: f32 = 220.0;
 const BOX_HEIGHT: f32 = 230.0;
+const TYPEWRITER_CHARS_PER_SECOND: f32 = 42.0;
 
 #[derive(Resource)]
 pub struct DialoguePortraits {
@@ -30,13 +31,32 @@ impl FromWorld for DialoguePortraits {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct DialogueState {
     pub active: bool,
     pub speaker: String,
     pub lines: Vec<String>,
     pub index: usize,
     pub portrait: Option<Handle<Image>>,
+    pub visible_chars: usize,
+    pub typewriter_timer: Timer,
+}
+
+impl Default for DialogueState {
+    fn default() -> Self {
+        Self {
+            active: false,
+            speaker: String::new(),
+            lines: Vec::new(),
+            index: 0,
+            portrait: None,
+            visible_chars: 0,
+            typewriter_timer: Timer::from_seconds(
+                1.0 / TYPEWRITER_CHARS_PER_SECOND,
+                TimerMode::Repeating,
+            ),
+        }
+    }
 }
 
 #[derive(Resource, Default)]
@@ -87,7 +107,12 @@ impl Plugin for DialoguePlugin {
             .add_systems(OnExit(GameState::InGame), despawn_dialogue_ui)
             .add_systems(
                 Update,
-                (run_dialogue_cinematic, sync_dialogue_ui, advance_dialogue)
+                (
+                    run_dialogue_cinematic,
+                    tick_dialogue_typewriter,
+                    sync_dialogue_ui,
+                    advance_dialogue,
+                )
                     .run_if(in_state(GameState::InGame)),
             );
     }
@@ -123,6 +148,8 @@ pub fn start_dialogue<I, S>(
     dialogue.lines = lines.into_iter().map(Into::into).collect();
     dialogue.portrait = portrait;
     dialogue.index = 0;
+    dialogue.visible_chars = 0;
+    dialogue.typewriter_timer.reset();
 }
 
 pub fn queue_dialogue<I, S>(
@@ -285,7 +312,10 @@ fn sync_dialogue_ui(
 
     *visibility = Visibility::Visible;
     **speaker_text = dialogue.speaker.clone();
-    **body_text = dialogue.lines[dialogue.index].clone();
+    **body_text = dialogue.lines[dialogue.index]
+        .chars()
+        .take(dialogue.visible_chars)
+        .collect();
 
     if let Ok((mut image_node, mut portrait_vis)) = portrait_query.single_mut() {
         if let Some(handle) = &dialogue.portrait {
@@ -297,8 +327,25 @@ fn sync_dialogue_ui(
     }
 }
 
+fn tick_dialogue_typewriter(time: Res<Time>, mut dialogue: ResMut<DialogueState>) {
+    if !dialogue.active || dialogue.lines.is_empty() || dialogue.index >= dialogue.lines.len() {
+        return;
+    }
+
+    let total_chars = dialogue.lines[dialogue.index].chars().count();
+    if dialogue.visible_chars >= total_chars {
+        return;
+    }
+
+    dialogue.typewriter_timer.tick(time.delta());
+    let ticks = dialogue.typewriter_timer.times_finished_this_tick() as usize;
+    if ticks > 0 {
+        dialogue.visible_chars = (dialogue.visible_chars + ticks).min(total_chars);
+    }
+}
+
 fn advance_dialogue(keyboard: Res<ButtonInput<KeyCode>>, mut dialogue: ResMut<DialogueState>) {
-    if !dialogue.active {
+    if !dialogue.active || dialogue.lines.is_empty() || dialogue.index >= dialogue.lines.len() {
         return;
     }
 
@@ -309,13 +356,23 @@ fn advance_dialogue(keyboard: Res<ButtonInput<KeyCode>>, mut dialogue: ResMut<Di
         return;
     }
 
+    let current_line_chars = dialogue.lines[dialogue.index].chars().count();
+    if dialogue.visible_chars < current_line_chars {
+        dialogue.visible_chars = current_line_chars;
+        return;
+    }
+
     if dialogue.index + 1 < dialogue.lines.len() {
         dialogue.index += 1;
+        dialogue.visible_chars = 0;
+        dialogue.typewriter_timer.reset();
     } else {
         dialogue.active = false;
         dialogue.speaker.clear();
         dialogue.lines.clear();
         dialogue.index = 0;
+        dialogue.visible_chars = 0;
+        dialogue.typewriter_timer.reset();
     }
 }
 
@@ -341,11 +398,7 @@ fn run_dialogue_cinematic(
         cinematic.base_scale = orthographic.scale;
         cinematic.base_translation = camera_transform.translation;
         cinematic.target_scale = cinematic.base_scale * DIALOGUE_TARGET_SCALE;
-        cinematic.target_translation = Vec3::new(
-            cinematic.focus.x,
-            cinematic.base_translation.y,
-            cinematic.base_translation.z,
-        );
+        cinematic.target_translation = cinematic.base_translation;
         cinematic.camera_captured = true;
     }
 

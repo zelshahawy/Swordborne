@@ -16,7 +16,8 @@ const LEVEL_CAMERA_SMOOTHING: f32 = 8.0;
 const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 8.0;
 const BACKGROUND_SIDE_PADDING: isize = 10;
 const BACKGROUND_ROWS_BELOW_GROUND: usize = 12;
-const BACKGROUND_ROWS_ABOVE_CEILING: usize = 3;
+// Keep a little masonry above the room while leaving more of the sky visible.
+const BACKGROUND_ROWS_ABOVE_CEILING: usize = 2;
 
 pub(crate) fn frame_level_camera(
     camera_query: &mut Query<(&mut Transform, &mut Projection), With<Camera2d>>,
@@ -122,7 +123,7 @@ pub(crate) fn spawn_room_shell(
             },
             ..default()
         },
-        Transform::from_xyz(0.0, ROOM_CEILING_Y + 2000.0, -13.0),
+        Transform::from_xyz(0.0, ROOM_CEILING_Y + 1930.0, -13.0),
     ));
 
     spawn_background_tiles(commands, art);

@@ -213,7 +213,7 @@ pub(crate) fn trigger_dark_wizard_intro(
             "No one has ever left my lair with their offer letter. Today will be no exception."
                 .to_string(),
         ],
-        player_transform.translation + Vec3::new(200.0, 110.0, 0.0),
+        player_transform.translation + Vec3::new(0.0, 110.0, 0.0),
         Some(portraits.dark_wizard.clone()),
     );
 }

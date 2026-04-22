@@ -34,5 +34,8 @@ wasm-bindgen \
   --target web \
   target/wasm32-unknown-unknown/wasm-release/swordborne.wasm
 
+echo "Copying web shell..."
+cp web/index.html wasm/
+
 echo "Copying assets..."
 cp -r assets wasm/

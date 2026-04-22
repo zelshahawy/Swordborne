@@ -204,8 +204,6 @@ async fn wasm_count_faster(time_secs: f64) -> u32 {
     resp.json::<Vec<Value>>().await.unwrap_or_default().len() as u32
 }
 
-// ─── Native blocking HTTP ─────────────────────────────────────────────────────
-
 #[cfg(not(target_arch = "wasm32"))]
 fn native_fetch_top10() -> FetchResult {
     let (url, key) = creds().ok_or_else(|| "credentials not set".to_string())?;
@@ -217,7 +215,7 @@ fn native_fetch_top10() -> FetchResult {
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {key}"))
         .send()
-        .map_err(|e| format!("request failed: {e}"))?;
+        .map_err(|_e| format!("Leaderboard is Paused"))?;
     if !resp.status().is_success() {
         return Err(format!("HTTP {}", resp.status()));
     }
