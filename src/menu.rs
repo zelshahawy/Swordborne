@@ -341,7 +341,7 @@ fn spawn_left_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
             // name label
             col.spawn((
                 Text::new("Knight Name"),
-                TextFont { font: fonts.pixel_regular.clone(), font_size: 13.0, ..default() },
+                TextFont { font: fonts.pixel_regular.clone(), font_size: 20.0, ..default() },
                 TextColor(Color::srgb(0.72, 0.77, 0.85)),
             ));
 

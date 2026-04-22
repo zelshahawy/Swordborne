@@ -7,6 +7,7 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <title>SwordBorne</title>
+    <link rel="icon" type="image/jpeg" href="./assets/icon.jpg" />
     <style>
       :root {
         color-scheme: dark;
@@ -38,19 +39,193 @@
         height: 100vh;
       }
 
+      #unsupported-screen {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top, rgba(83, 115, 175, 0.22), transparent 45%),
+          radial-gradient(circle at bottom, rgba(146, 65, 33, 0.22), transparent 40%),
+          #09080d;
+        color: #f4efe7;
+        text-align: center;
+      }
+
+      #unsupported-screen .message {
+        max-width: 420px;
+        padding: 28px;
+        border: 1px solid rgba(244, 239, 231, 0.18);
+        border-radius: 18px;
+        background: rgba(9, 8, 13, 0.82);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      #unsupported-screen h1 {
+        margin: 0 0 12px;
+        font-size: clamp(1.5rem, 4vw, 2.2rem);
+      }
+
+      #unsupported-screen p {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: rgba(244, 239, 231, 0.84);
+      }
+
+      #fullscreen-button {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 20;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 52px;
+        padding: 0 18px;
+        border: 3px solid rgba(255, 255, 255, 0.22);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.9);
+        font-family: monospace;
+        font-size: 0.88rem;
+        letter-spacing: 0;
+        cursor: pointer;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        transition:
+          background 120ms ease,
+          border-color 120ms ease,
+          transform 120ms ease;
+      }
+
+      #fullscreen-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.32);
+      }
+
+      #fullscreen-button:active {
+        transform: translateY(1px);
+      }
+
+      #fullscreen-button .icon {
+        width: 15px;
+        height: 15px;
+        opacity: 0.9;
+        flex: 0 0 auto;
+      }
+
+      #fullscreen-button .label {
+        transform: translateY(-1px);
+        white-space: nowrap;
+      }
+
       canvas {
         display: block;
+      }
+
+      @media (max-width: 900px), (max-height: 700px) {
+        #bevy-container {
+          display: none;
+        }
+
+        #fullscreen-button {
+          display: none;
+        }
+
+        #unsupported-screen {
+          display: flex;
+        }
       }
     </style>
   </head>
   <body>
     <div id="bevy-container"></div>
+    <button id="fullscreen-button" type="button">
+      <svg
+        class="icon"
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M2.5 7V2.5H7M13 2.5H17.5V7M17.5 13V17.5H13M7 17.5H2.5V13"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="square"
+        />
+      </svg>
+      <span class="label">Fullscreen</span>
+    </button>
+    <div id="unsupported-screen">
+      <div class="message">
+        <h1>Display Size Unsupported</h1>
+        <p>There is no version for this display size. Please use a bigger screen.</p>
+      </div>
+    </div>
     <script type="module">
       import init from "./bevy_game.js";
 
-      init().catch((error) => {
-        console.error("Failed to start SwordBorne", error);
+      const bevyContainer = document.getElementById("bevy-container");
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      const unsupportedScreen = document.getElementById("unsupported-screen");
+      let gameStarted = false;
+
+      function isSupportedScreen() {
+        return window.innerWidth > 900 && window.innerHeight > 700;
+      }
+
+      function syncFullscreenButton() {
+        const inFullscreen = Boolean(document.fullscreenElement);
+        const label = fullscreenButton.querySelector(".label");
+        label.textContent = inFullscreen ? "Exit Fullscreen" : "Fullscreen";
+      }
+
+      async function updateScreenMode() {
+        const supported = isSupportedScreen();
+
+        bevyContainer.style.display = supported ? "block" : "none";
+        fullscreenButton.style.display = supported ? "block" : "none";
+        unsupportedScreen.style.display = supported ? "none" : "flex";
+
+        if (!supported) {
+          return;
+        }
+
+        if (gameStarted) {
+          return;
+        }
+
+        gameStarted = true;
+        try {
+          await init();
+        } catch (error) {
+          console.error("Failed to start SwordBorne", error);
+        }
+      }
+
+      fullscreenButton.addEventListener("click", async () => {
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          } else {
+            await document.documentElement.requestFullscreen();
+          }
+        } catch (error) {
+          console.error("Failed to toggle fullscreen", error);
+        } finally {
+          syncFullscreenButton();
+        }
       });
+
+      document.addEventListener("fullscreenchange", syncFullscreenButton);
+      window.addEventListener("resize", updateScreenMode);
+      syncFullscreenButton();
+      updateScreenMode();
     </script>
   </body>
 </html>
