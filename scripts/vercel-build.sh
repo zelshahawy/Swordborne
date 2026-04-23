@@ -20,7 +20,7 @@ rustup target add wasm32-unknown-unknown
 
 if ! command -v wasm-bindgen >/dev/null 2>&1; then
   echo "Installing wasm-bindgen-cli..."
-  cargo install wasm-bindgen-cli --version 0.2.114 --locked
+  cargo install wasm-bindgen-cli --version 0.2.118 --locked
 fi
 
 echo "Building Rust WASM binary..."
