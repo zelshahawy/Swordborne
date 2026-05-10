@@ -474,7 +474,7 @@ pub(crate) fn execute_level_restart(
         Some(level_bounds_for(campaign.current_level)),
         Some(level_camera_focus_x(campaign.current_level)),
     );
-    spawn_level_scene(&mut commands, &art, &fonts, &player_anims, &sword_visuals, &campaign, &profile);
+    spawn_level_scene(&mut commands, &art, &fonts, &player_anims, &sword_visuals, &campaign, &profile, &mut player_health);
 }
 
 pub(crate) fn apply_level_transition(
@@ -486,6 +486,7 @@ pub(crate) fn apply_level_transition(
     player_anims: Res<crate::player::PlayerAnimationHandles>,
     sword_visuals: Res<crate::sword::SwordVisualHandles>,
     profile: Res<PlayerProfile>,
+    mut player_health: ResMut<PlayerHealth>,
     level_entities: Query<Entity, With<LevelEntity>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
@@ -516,6 +517,7 @@ pub(crate) fn apply_level_transition(
         &sword_visuals,
         &campaign,
         &profile,
+        &mut player_health,
     );
 }
 

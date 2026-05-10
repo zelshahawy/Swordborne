@@ -2,28 +2,29 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
 use crate::boss::{
-    Boss, BossAnimationFrame, BossAnimationTimer, BossDefeatedText, BossHp, BossInvincible,
-    BossPhase, BOSS_MAX_HP, spawn_boss_hp_bar, spawn_player_hp_ui,
+    BOSS_MAX_HP, Boss, BossAnimationFrame, BossAnimationTimer, BossDefeatedText, BossHp,
+    BossInvincible, BossPhase, spawn_boss_hp_bar, spawn_player_hp_ui,
 };
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableChest, BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X, LEVEL_FIVE_PLAYER_START_X,
-    LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
+    BreakableChest, BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X,
+    LEVEL_FIVE_PLAYER_START_X, LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
     LEVEL_FOUR_GREEN_X, LEVEL_FOUR_PLAYER_START_X, LEVEL_FOUR_RED_A_X, LEVEL_FOUR_RED_B_X,
-    LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X,
-    LEVEL_ONE_SWORD_X, LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_THREE_BLUE_X,
-    LEVEL_THREE_DOOR_X, LEVEL_THREE_GREEN_X, LEVEL_THREE_PLAYER_START_X, LEVEL_THREE_RED_X,
-    LEVEL_TWO_CRATE_X, LEVEL_TWO_DOOR_X, LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y,
-    LEVEL_TWO_PLAYER_START_X, LEVEL_TWO_SHELF_TOP_Y, LevelArtHandles, LevelBounds, LevelEntity,
-    LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText, ROOM_CEILING_Y,
-    ROOM_PLAYER_LEFT_X, ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker,
-    TILE_SCALE, TILE_WORLD_SIZE, TrainingDoor, WIZARD_SCALE, WizardAnimationFrame,
-    WizardAnimationTimer, WizardNpc, frame_level_camera, spawn_bottom_anchored_sprite,
-    spawn_centered_tile, spawn_room_shell,
+    LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X, LEVEL_ONE_SWORD_X,
+    LEVEL_ONE_TUTORIAL_X, LEVEL_ONE_WIZARD_X, LEVEL_THREE_BLUE_X, LEVEL_THREE_DOOR_X,
+    LEVEL_THREE_GREEN_X, LEVEL_THREE_PLAYER_START_X, LEVEL_THREE_RED_X, LEVEL_TWO_CRATE_X,
+    LEVEL_TWO_DOOR_X, LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, LEVEL_TWO_PLAYER_START_X,
+    LEVEL_TWO_SHELF_TOP_Y, LevelArtHandles, LevelBounds, LevelEntity, LevelFourCompletionText,
+    LevelThreeCompletionText, LevelTwoCompletionText, ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X,
+    ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker, TILE_SCALE,
+    TILE_WORLD_SIZE, TrainingDoor, WIZARD_SCALE, WizardAnimationFrame, WizardAnimationTimer,
+    WizardNpc, frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile,
+    spawn_room_shell,
 };
-use crate::puzzle::PuzzleBlock;
-use crate::state::BlockColor;
+
 use crate::player::{GROUND_Y, PlayerAnimationHandles, spawn::spawn_player_entity};
+use crate::puzzle::PuzzleBlock;
+use crate::state::{BlockColor, PlayerHealth};
 use crate::state::{CampaignState, LevelId, PlayerProfile};
 use crate::sword::{SwordState, SwordVisualHandles, spawn::spawn_sword_entity};
 
@@ -35,6 +36,7 @@ pub(crate) fn spawn_current_level(
     campaign: Res<CampaignState>,
     profile: Res<PlayerProfile>,
     fonts: Res<GameFonts>,
+    mut player_health: ResMut<PlayerHealth>,
     window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mut camera_query: Query<(&mut Transform, &mut Projection), With<Camera2d>>,
 ) {
@@ -53,6 +55,7 @@ pub(crate) fn spawn_current_level(
         &sword_visuals,
         &campaign,
         &profile,
+        &mut player_health,
     );
 }
 
@@ -73,21 +76,40 @@ pub(crate) fn spawn_level_scene(
     sword_visuals: &SwordVisualHandles,
     campaign: &CampaignState,
     profile: &PlayerProfile,
+    player_health: &mut PlayerHealth,
 ) {
     match campaign.current_level {
         LevelId::LevelOne => spawn_level_one(commands, art, fonts, player_anims, sword_visuals),
         LevelId::LevelTwo => {
             spawn_level_two(commands, art, fonts, player_anims, sword_visuals, profile)
         }
-        LevelId::LevelThree => {
-            spawn_level_three(commands, art, fonts, player_anims, sword_visuals, campaign, profile)
-        }
-        LevelId::LevelFour => {
-            spawn_level_four(commands, art, fonts, player_anims, sword_visuals, campaign, profile)
-        }
-        LevelId::LevelFive => {
-            spawn_level_five(commands, art, fonts, player_anims, sword_visuals, profile)
-        }
+        LevelId::LevelThree => spawn_level_three(
+            commands,
+            art,
+            fonts,
+            player_anims,
+            sword_visuals,
+            campaign,
+            profile,
+        ),
+        LevelId::LevelFour => spawn_level_four(
+            commands,
+            art,
+            fonts,
+            player_anims,
+            sword_visuals,
+            campaign,
+            profile,
+        ),
+        LevelId::LevelFive => spawn_level_five(
+            commands,
+            art,
+            fonts,
+            player_anims,
+            sword_visuals,
+            profile,
+            player_health,
+        ),
     }
 }
 
@@ -146,7 +168,11 @@ fn spawn_level_one(
         TILE_SCALE,
     );
 
-    spawn_chest(commands, art, Vec3::new(LEVEL_ONE_TUTORIAL_X - 80.0, GROUND_Y, 4.0));
+    spawn_chest(
+        commands,
+        art,
+        Vec3::new(LEVEL_ONE_TUTORIAL_X - 80.0, GROUND_Y, 4.0),
+    );
 
     spawn_bottom_anchored_sprite(
         commands,
@@ -235,9 +261,7 @@ fn spawn_level_two(
 
     commands.spawn((
         LevelEntity,
-        Text2d::new(
-            "Hold Right Click to aim the sword.\nRelease to shatter the crate above.",
-        ),
+        Text2d::new("Hold Right Click to aim the sword.\nRelease to shatter the crate above."),
         TextFont {
             font: fonts.pixel_regular.clone(),
             font_size: 12.0,
@@ -356,7 +380,6 @@ fn spawn_training_door(commands: &mut Commands, art: &LevelArtHandles, position:
         Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
     ));
 }
-
 
 fn spawn_level_three(
     commands: &mut Commands,
@@ -528,14 +551,22 @@ fn spawn_level_four(
         );
         commands.spawn((
             LevelEntity,
-            PuzzleBlock { color, activated: false, hit_cooldown: 0.0 },
+            PuzzleBlock {
+                color,
+                activated: false,
+                hit_cooldown: 0.0,
+            },
             Sprite::from_color(color.dim_color(), Vec2::new(48.0, 48.0)),
             Transform::from_xyz(x, GROUND_Y + 210.0, 4.0),
         ));
         commands.spawn((
             LevelEntity,
             Text2d::new(color.label()),
-            TextFont { font: fonts.pixel_bold.clone(), font_size: 12.0, ..default() },
+            TextFont {
+                font: fonts.pixel_bold.clone(),
+                font_size: 12.0,
+                ..default()
+            },
             TextColor(Color::srgb(0.85, 0.85, 0.85)),
             Transform::from_xyz(x, GROUND_Y + 170.0, 4.0),
         ));
@@ -555,7 +586,11 @@ fn spawn_level_four(
         commands.spawn((
             LevelEntity,
             Text2d::new(format!("{}.", i + 1)),
-            TextFont { font: fonts.pixel_bold.clone(), font_size: 11.0, ..default() },
+            TextFont {
+                font: fonts.pixel_bold.clone(),
+                font_size: 11.0,
+                ..default()
+            },
             TextColor(Color::srgb(0.85, 0.85, 0.85)),
             Transform::from_xyz(x, seq_y - 24.0, 5.0),
         ));
@@ -564,15 +599,28 @@ fn spawn_level_four(
     commands.spawn((
         LevelEntity,
         Text2d::new("Aim upward to throw the sword at elevated blocks."),
-        TextFont { font: fonts.pixel_regular.clone(), font_size: 11.0, ..default() },
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 11.0,
+            ..default()
+        },
         TextColor(Color::srgb(0.75, 0.75, 0.75)),
         TextLayout::new_with_justify(Justify::Center),
         Transform::from_xyz(0.0, seq_y - 44.0, 5.0),
     ));
 
-    spawn_training_door(commands, art, Vec3::new(LEVEL_FOUR_DOOR_X, GROUND_Y, 4.0), false);
+    spawn_training_door(
+        commands,
+        art,
+        Vec3::new(LEVEL_FOUR_DOOR_X, GROUND_Y, 4.0),
+        false,
+    );
 
-    let knight_name = if profile.name.is_empty() { "Knight" } else { profile.name.as_str() };
+    let knight_name = if profile.name.is_empty() {
+        "Knight"
+    } else {
+        profile.name.as_str()
+    };
     commands.spawn((
         LevelEntity,
         LevelFourCompletionText,
@@ -580,7 +628,11 @@ fn spawn_level_four(
         Text2d::new(format!(
             "{knight_name}, The Vault has fallen.\nYou are a true master of the sword."
         )),
-        TextFont { font: fonts.pixel_regular.clone(), font_size: 14.0, ..default() },
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 14.0,
+            ..default()
+        },
         TextColor(Color::srgb(0.98, 0.92, 0.72)),
         TextLayout::new_with_justify(Justify::Center),
         Transform::from_xyz(0.0, GROUND_Y + 150.0, 8.0),
@@ -632,7 +684,10 @@ fn spawn_level_five(
     player_anims: &PlayerAnimationHandles,
     sword_visuals: &SwordVisualHandles,
     profile: &PlayerProfile,
+    players_health: &mut PlayerHealth,
 ) {
+    *players_health = PlayerHealth::default();
+
     commands.insert_resource(level_bounds_for(LevelId::LevelFive));
 
     spawn_room_shell(commands, art, fonts, "THE WIZARD'S LAIR");
@@ -640,7 +695,10 @@ fn spawn_level_five(
     // Blood-red atmosphere overlay
     commands.spawn((
         LevelEntity,
-        Sprite::from_color(Color::srgba(0.35, 0.0, 0.0, 0.18), Vec2::new(2800.0, 1800.0)),
+        Sprite::from_color(
+            Color::srgba(0.35, 0.0, 0.0, 0.18),
+            Vec2::new(2800.0, 1800.0),
+        ),
         Transform::from_xyz(0.0, 0.0, -37.0),
     ));
     // Dark crimson ground fog
@@ -669,7 +727,10 @@ fn spawn_level_five(
     commands.spawn((
         LevelEntity,
         Boss,
-        BossHp { current: BOSS_MAX_HP, max: BOSS_MAX_HP },
+        BossHp {
+            current: BOSS_MAX_HP,
+            max: BOSS_MAX_HP,
+        },
         BossPhase::Chase,
         BossInvincible(0.0),
         BossAnimationFrame::default(),
@@ -733,13 +794,21 @@ fn spawn_level_five(
     commands.spawn((
         LevelEntity,
         Text2d::new("Only the thrown blade can pierce his dark magic."),
-        TextFont { font: fonts.pixel_bold.clone(), font_size: 15.0, ..default() },
+        TextFont {
+            font: fonts.pixel_bold.clone(),
+            font_size: 15.0,
+            ..default()
+        },
         TextColor(Color::srgb(0.92, 0.55, 0.55)),
         TextLayout::new_with_justify(Justify::Center),
         Transform::from_xyz(0.0, GROUND_Y + 220.0, 5.0),
     ));
 
-    let knight_name = if profile.name.is_empty() { "Knight" } else { profile.name.as_str() };
+    let knight_name = if profile.name.is_empty() {
+        "Knight"
+    } else {
+        profile.name.as_str()
+    };
     commands.spawn((
         LevelEntity,
         BossDefeatedText,
@@ -747,7 +816,11 @@ fn spawn_level_five(
         Text2d::new(format!(
             "The Dark Wizard falls.\n{knight_name}, your internship is confirmed."
         )),
-        TextFont { font: fonts.pixel_regular.clone(), font_size: 16.0, ..default() },
+        TextFont {
+            font: fonts.pixel_regular.clone(),
+            font_size: 16.0,
+            ..default()
+        },
         TextColor(Color::srgb(1.0, 0.85, 0.3)),
         TextLayout::new_with_justify(Justify::Center),
         Transform::from_xyz(0.0, GROUND_Y + 160.0, 8.0),

@@ -11,7 +11,11 @@ const BOSS_MIN_Y: f32 = GROUND_Y + 30.0;
 const BOSS_MAX_Y_OFFSET: f32 = 80.0;
 
 fn boss_tint(p2: bool) -> Color {
-    if p2 { Color::srgb(1.0, 0.12, 0.12) } else { Color::srgb(1.0, 0.28, 0.28) }
+    if p2 {
+        Color::srgb(1.0, 0.12, 0.12)
+    } else {
+        Color::srgb(1.0, 0.28, 0.28)
+    }
 }
 
 pub(crate) fn tick_boss(
@@ -19,17 +23,22 @@ pub(crate) fn tick_boss(
     art: Res<LevelArtHandles>,
     bounds: Res<LevelBounds>,
     player_query: Query<&Transform, (With<Player>, Without<Boss>)>,
-    mut boss_query: Query<(
-        &mut Transform,
-        &mut Sprite,
-        &mut BossPhase,
-        &mut BossInvincible,
-        &mut BossAnimationTimer,
-        &mut BossAnimationFrame,
-        &BossHp,
-    ), With<Boss>>,
+    mut boss_query: Query<
+        (
+            &mut Transform,
+            &mut Sprite,
+            &mut BossPhase,
+            &mut BossInvincible,
+            &mut BossAnimationTimer,
+            &mut BossAnimationFrame,
+            &BossHp,
+        ),
+        With<Boss>,
+    >,
 ) {
-    let Ok(player_tf) = player_query.single() else { return; };
+    let Ok(player_tf) = player_query.single() else {
+        return;
+    };
     let Ok((mut tf, mut sprite, mut phase, mut inv, mut anim_timer, mut anim_frame, hp)) =
         boss_query.single_mut()
     else {
@@ -60,14 +69,25 @@ pub(crate) fn tick_boss(
 
         BossPhase::Stagger { timer } => {
             let t = timer - dt;
-            *phase = if t <= 0.0 { BossPhase::Chase } else { BossPhase::Stagger { timer: t } };
+            *phase = if t <= 0.0 {
+                BossPhase::Chase
+            } else {
+                BossPhase::Stagger { timer: t }
+            };
         }
 
         BossPhase::Windup { dir, timer } => {
             let t = timer - dt;
             if t <= 0.0 {
-                let speed = if is_p2 { BOSS_CHARGE_SPEED_P2 } else { BOSS_CHARGE_SPEED };
-                *phase = BossPhase::Charge { vel: dir * speed, timer: BOSS_CHARGE_DURATION };
+                let speed = if is_p2 {
+                    BOSS_CHARGE_SPEED_P2
+                } else {
+                    BOSS_CHARGE_SPEED
+                };
+                *phase = BossPhase::Charge {
+                    vel: dir * speed,
+                    timer: BOSS_CHARGE_DURATION,
+                };
             } else {
                 *phase = BossPhase::Windup { dir, timer: t };
             }
@@ -76,8 +96,7 @@ pub(crate) fn tick_boss(
         BossPhase::Charge { vel, timer } => {
             tf.translation.x = (tf.translation.x + vel.x * dt)
                 .clamp(bounds.wall_left_x + 44.0, bounds.wall_right_x - 44.0);
-            tf.translation.y = (tf.translation.y + vel.y * dt)
-                .clamp(BOSS_MIN_Y, boss_max_y);
+            tf.translation.y = (tf.translation.y + vel.y * dt).clamp(BOSS_MIN_Y, boss_max_y);
             sprite.flip_x = vel.x < 0.0;
             let t = timer - dt;
             *phase = if t <= 0.0 {
@@ -92,16 +111,24 @@ pub(crate) fn tick_boss(
                 player_tf.translation.x - tf.translation.x,
                 player_tf.translation.y - tf.translation.y,
             );
-            let speed = if is_p2 { BOSS_CHASE_SPEED_P2 } else { BOSS_CHASE_SPEED };
+            let speed = if is_p2 {
+                BOSS_CHASE_SPEED_P2
+            } else {
+                BOSS_CHASE_SPEED
+            };
             let dir = dp.normalize_or_zero();
             tf.translation.x = (tf.translation.x + dir.x * speed * dt)
                 .clamp(bounds.wall_left_x + 44.0, bounds.wall_right_x - 44.0);
-            tf.translation.y = (tf.translation.y + dir.y * speed * dt)
-                .clamp(BOSS_MIN_Y, boss_max_y);
+            tf.translation.y =
+                (tf.translation.y + dir.y * speed * dt).clamp(BOSS_MIN_Y, boss_max_y);
             sprite.flip_x = dp.x < 0.0;
 
             if dp.length() < BOSS_CHARGE_TRIGGER_DIST {
-                let windup = if is_p2 { BOSS_CHARGE_WINDUP_P2 } else { BOSS_CHARGE_WINDUP };
+                let windup = if is_p2 {
+                    BOSS_CHARGE_WINDUP_P2
+                } else {
+                    BOSS_CHARGE_WINDUP
+                };
                 *phase = BossPhase::Windup { dir, timer: windup };
             }
         }
@@ -115,7 +142,9 @@ pub(crate) fn boss_take_damage(
     >,
     sword_query: Query<(&Transform, &SwordState), With<Sword>>,
 ) {
-    let Ok((boss_tf, mut hp, mut phase, mut inv)) = boss_query.single_mut() else { return; };
+    let Ok((boss_tf, mut hp, mut phase, mut inv)) = boss_query.single_mut() else {
+        return;
+    };
     if *phase == BossPhase::Dead || inv.0 > 0.0 {
         return;
     }
@@ -131,7 +160,9 @@ pub(crate) fn boss_take_damage(
                 hp.current = 0;
                 BossPhase::Dead
             } else {
-                BossPhase::Stagger { timer: BOSS_STAGGER_DURATION }
+                BossPhase::Stagger {
+                    timer: BOSS_STAGGER_DURATION,
+                }
             };
             break;
         }
@@ -146,12 +177,16 @@ pub(crate) fn boss_disarm_player(
         (With<Sword>, Without<Boss>, Without<Player>),
     >,
 ) {
-    let Ok((boss_tf, phase)) = boss_query.single() else { return; };
+    let Ok((boss_tf, phase)) = boss_query.single() else {
+        return;
+    };
     let vel_x = match phase {
         BossPhase::Charge { vel, .. } => vel.x,
         _ => return,
     };
-    let Ok((player_tf, mut has_sword)) = player_query.single_mut() else { return; };
+    let Ok((player_tf, mut has_sword)) = player_query.single_mut() else {
+        return;
+    };
     if !has_sword.0 {
         return;
     }
@@ -178,14 +213,18 @@ pub(crate) fn boss_hit_player(
     mut player_health: ResMut<PlayerHealth>,
     mut fade_state: ResMut<FadeState>,
 ) {
-    let Ok((boss_tf, phase)) = boss_query.single() else { return; };
+    let Ok((boss_tf, phase)) = boss_query.single() else {
+        return;
+    };
     if !matches!(phase, BossPhase::Charge { .. }) {
         return;
     }
     if player_health.invincibility_timer > 0.0 {
         return;
     }
-    let Ok(player_tf) = player_query.single() else { return; };
+    let Ok(player_tf) = player_query.single() else {
+        return;
+    };
     if boss_tf.translation.distance(player_tf.translation) > BOSS_DISARM_DIST {
         return;
     }
@@ -207,7 +246,9 @@ pub(crate) fn tick_player_invincibility(
     if player_health.invincibility_timer > 0.0 {
         player_health.invincibility_timer = (player_health.invincibility_timer - dt).max(0.0);
     }
-    let Ok(mut sprite) = player_query.single_mut() else { return; };
+    let Ok(mut sprite) = player_query.single_mut() else {
+        return;
+    };
     sprite.color = if player_health.invincibility_timer > 0.0
         && (player_health.invincibility_timer * 12.0) as i32 % 2 == 0
     {
@@ -221,8 +262,12 @@ pub(crate) fn sync_boss_hp_bar(
     boss_query: Query<&BossHp, (With<Boss>, Changed<BossHp>)>,
     mut fill_query: Query<&mut Node, With<BossHpFill>>,
 ) {
-    let Ok(hp) = boss_query.single() else { return; };
-    let Ok(mut fill_node) = fill_query.single_mut() else { return; };
+    let Ok(hp) = boss_query.single() else {
+        return;
+    };
+    let Ok(mut fill_node) = fill_query.single_mut() else {
+        return;
+    };
     let ratio = (hp.current as f32 / hp.max as f32).max(0.0);
     fill_node.width = Val::Percent(ratio * 100.0);
 }
@@ -234,7 +279,9 @@ pub(crate) fn handle_boss_defeat(
     mut run_timer: ResMut<RunTimer>,
     mut defeated: ResMut<BossDefeated>,
 ) {
-    let Ok((boss_entity, phase)) = boss_query.single() else { return; };
+    let Ok((boss_entity, phase)) = boss_query.single() else {
+        return;
+    };
     if *phase != BossPhase::Dead {
         return;
     }
@@ -281,7 +328,11 @@ pub(crate) fn spawn_player_hp_ui(commands: &mut Commands, fonts: &GameFonts) {
             parent.spawn((
                 LevelEntity,
                 Text::new("LIVES"),
-                TextFont { font: fonts.pixel_bold.clone(), font_size: 11.0, ..default() },
+                TextFont {
+                    font: fonts.pixel_bold.clone(),
+                    font_size: 11.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.75, 0.28, 0.28)),
             ));
             parent
@@ -330,7 +381,11 @@ pub(crate) fn spawn_boss_hp_bar(commands: &mut Commands, fonts: &GameFonts) {
             parent.spawn((
                 LevelEntity,
                 Text::new("THE DARK WIZARD"),
-                TextFont { font: fonts.pixel_bold.clone(), font_size: 13.0, ..default() },
+                TextFont {
+                    font: fonts.pixel_bold.clone(),
+                    font_size: 13.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.95, 0.28, 0.28)),
             ));
             parent
