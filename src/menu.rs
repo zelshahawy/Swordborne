@@ -396,6 +396,7 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
             width: Val::Px(420.0),
             flex_direction: FlexDirection::Column,
             padding: UiRect::all(Val::Px(28.0)),
+            margin: UiRect::top(Val::Px(80.0)),
             row_gap: Val::Px(12.0),
             border: UiRect::all(Val::Px(1.0)),
             border_radius: BorderRadius::all(Val::Px(20.0)),
