@@ -407,14 +407,14 @@ fn spawn_right_panel(parent: &mut ChildSpawnerCommands, fonts: &GameFonts) {
         .with_children(|col| {
             col.spawn((
                 Text::new("LEADERBOARD"),
-                TextFont { font: fonts.pixel_bold.clone(), font_size: 18.0, ..default() },
+                TextFont { font: fonts.pixel_bold.clone(), font_size: 26.0, ..default() },
                 TextColor(Color::srgb(0.95, 0.90, 0.60)),
             ));
 
             col.spawn((
                 Node {
                     width: Val::Percent(100.0),
-                    height: Val::Px(1.0),
+                    height: Val::Px(2.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.95, 0.93, 0.88, 0.12)),
