@@ -12,21 +12,23 @@ mod spawn;
 
 pub(crate) use assets::{LevelArtHandles, load_level_art};
 pub(crate) use components::{
-    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, LevelBounds, LevelEntity,
+    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, FountainAnimation,
+    FountainAnimationTimer, LevelBounds, LevelEntity,
     LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
     PendingLevelTransition, SwordBlocker, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer,
     WizardNpc,
 };
 pub(crate) use logic::{
-    animate_wizard_idle, apply_level_transition, break_crates, constrain_player_to_level,
-    execute_level_restart, open_chests, request_level_restart, sync_level_four_completion_text,
-    sync_level_three_completion_text, sync_level_two_completion_text, sync_level_two_door,
-    trigger_dark_wizard_intro, trigger_wizard_followup, trigger_wizard_intro, try_advance_level,
-    update_crate_break_shards, update_training_door_visual,
+    animate_fountains, animate_wizard_idle, apply_level_transition, break_crates,
+    constrain_player_to_level, execute_level_restart, open_chests, request_level_restart,
+    sync_level_four_completion_text, sync_level_three_completion_text,
+    sync_level_two_completion_text, sync_level_two_door, trigger_dark_wizard_intro,
+    trigger_wizard_followup, trigger_wizard_intro, try_advance_level, update_crate_break_shards,
+    update_training_door_visual,
 };
 pub(crate) use scene::{
-    frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile, spawn_room_shell,
-    update_level_camera,
+    DQ_TEXT_GOLD, DQ_TEXT_WHITE, RoomTheme, frame_level_camera, spawn_bottom_anchored_sprite,
+    spawn_centered_tile, spawn_room_shell, spawn_world_text, update_level_camera,
 };
 pub(crate) use spawn::{
     despawn_level_entities, level_bounds_for, level_camera_focus_x, spawn_current_level,
@@ -85,7 +87,7 @@ impl Plugin for LevelPlugin {
             .add_systems(OnExit(GameState::InGame), despawn_level_entities)
             .add_systems(
                 Update,
-                animate_wizard_idle.run_if(in_state(GameState::InGame)),
+                (animate_wizard_idle, animate_fountains).run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

@@ -77,6 +77,15 @@ pub struct SwordBlocker {
 }
 
 #[derive(Component)]
+pub(crate) struct FountainAnimation {
+    pub frames: [Handle<Image>; 3],
+    pub index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct FountainAnimationTimer(pub Timer);
+
+#[derive(Component)]
 pub(crate) struct LevelTwoCompletionText;
 
 #[derive(Component)]

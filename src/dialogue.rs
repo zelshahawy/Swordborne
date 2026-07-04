@@ -177,23 +177,31 @@ pub fn queue_dialogue<I, S>(
 }
 
 fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
+    // Floating Dragon Quest-style message window: black panel, double white
+    // border (border + offset outline), floating clear of the screen edges.
     commands
         .spawn((
             DialogueUiRoot,
             Visibility::Hidden,
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                bottom: Val::Px(0.0),
+                left: Val::Px(20.0),
+                right: Val::Px(20.0),
+                bottom: Val::Px(20.0),
                 height: Val::Px(BOX_HEIGHT),
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Stretch,
-                border: UiRect::top(Val::Px(3.0)),
+                border: UiRect::all(Val::Px(3.0)),
+                border_radius: BorderRadius::all(Val::Px(10.0)),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.04, 0.05, 0.10, 0.95)),
-            BorderColor::all(Color::srgb(0.82, 0.72, 0.44)),
+            BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.96)),
+            BorderColor::all(Color::srgb(0.93, 0.92, 0.88)),
+            Outline {
+                width: Val::Px(2.0),
+                offset: Val::Px(3.0),
+                color: Color::srgba(0.93, 0.92, 0.88, 0.55),
+            },
         ))
         .with_children(|root| {
             // Portrait panel on the left
@@ -203,11 +211,10 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                     flex_shrink: 0.0,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
-                    border: UiRect::right(Val::Px(3.0)),
+                    padding: UiRect::all(Val::Px(12.0)),
                     ..default()
                 },
-                BackgroundColor(Color::srgba(0.02, 0.03, 0.08, 0.98)),
-                BorderColor::all(Color::srgb(0.82, 0.72, 0.44)),
+                BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.4)),
             ))
             .with_children(|panel| {
                 panel.spawn((
@@ -216,8 +223,11 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
+                    BorderColor::all(Color::srgb(0.93, 0.92, 0.88)),
                     ImageNode::default().with_mode(NodeImageMode::Stretch),
                 ));
             });
@@ -239,7 +249,7 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
                         font_size: 28.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(0.97, 0.86, 0.58)),
+                    TextColor(Color::srgb(0.96, 0.87, 0.58)),
                 ));
 
                 text.spawn((
@@ -259,13 +269,17 @@ fn spawn_dialogue_ui(mut commands: Commands, fonts: Res<GameFonts>) {
 
                 text.spawn((
                     DialogueHintText,
-                    Text::new("[ Space / Enter / E ] to continue"),
+                    Text::new("[ Space / Enter / E ] to continue  \u{25BC}"),
                     TextFont {
                         font: fonts.pixel_regular.clone(),
                         font_size: 13.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(0.55, 0.64, 0.80)),
+                    TextColor(Color::srgba(0.93, 0.92, 0.88, 0.65)),
+                    Node {
+                        align_self: AlignSelf::FlexEnd,
+                        ..default()
+                    },
                 ));
             });
         });

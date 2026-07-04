@@ -296,33 +296,45 @@ pub(crate) fn handle_boss_defeat(
 
 pub(crate) fn sync_player_hp_display(
     player_health: Res<PlayerHealth>,
-    mut query: Query<(&PlayerHpHeart, &mut BackgroundColor)>,
+    art: Res<LevelArtHandles>,
+    mut query: Query<(&PlayerHpHeart, &mut ImageNode)>,
 ) {
     if !player_health.is_changed() {
         return;
     }
-    for (heart, mut color) in &mut query {
-        *color = if heart.0 < player_health.current as usize {
-            BackgroundColor(Color::srgb(0.88, 0.12, 0.12))
+    for (heart, mut image) in &mut query {
+        image.image = if heart.0 < player_health.current as usize {
+            art.heart_full.clone()
         } else {
-            BackgroundColor(Color::srgb(0.18, 0.07, 0.07))
+            art.heart_empty.clone()
         };
     }
 }
 
-pub(crate) fn spawn_player_hp_ui(commands: &mut Commands, fonts: &GameFonts) {
+pub(crate) fn spawn_player_hp_ui(
+    commands: &mut Commands,
+    fonts: &GameFonts,
+    art: &LevelArtHandles,
+) {
     commands
         .spawn((
             LevelEntity,
+            // Top-right: the wasm page pins a Fullscreen button at the top-left,
+            // and since the window fits the screen again, the right edge is safe.
             Node {
                 position_type: PositionType::Absolute,
-                top: Val::Px(12.0),
-                right: Val::Px(16.0),
+                top: Val::Px(14.0),
+                right: Val::Px(18.0),
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::FlexEnd,
-                row_gap: Val::Px(4.0),
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(5.0),
+                padding: UiRect::axes(Val::Px(14.0), Val::Px(9.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
             },
+            BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.92)),
+            BorderColor::all(Color::srgb(0.93, 0.92, 0.88)),
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -333,14 +345,14 @@ pub(crate) fn spawn_player_hp_ui(commands: &mut Commands, fonts: &GameFonts) {
                     font_size: 11.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.75, 0.28, 0.28)),
+                TextColor(Color::srgb(0.96, 0.87, 0.58)),
             ));
             parent
                 .spawn((
                     LevelEntity,
                     Node {
                         flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(4.0),
+                        column_gap: Val::Px(5.0),
                         ..default()
                     },
                 ))
@@ -350,12 +362,12 @@ pub(crate) fn spawn_player_hp_ui(commands: &mut Commands, fonts: &GameFonts) {
                             LevelEntity,
                             PlayerHpHeart(i),
                             Node {
-                                width: Val::Px(16.0),
-                                height: Val::Px(16.0),
-                                border_radius: BorderRadius::all(Val::Px(2.0)),
+                                width: Val::Px(26.0),
+                                height: Val::Px(24.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.88, 0.12, 0.12)),
+                            ImageNode::new(art.heart_full.clone())
+                                .with_mode(NodeImageMode::Stretch),
                         ));
                     }
                 });
@@ -378,41 +390,58 @@ pub(crate) fn spawn_boss_hp_bar(commands: &mut Commands, fonts: &GameFonts) {
             },
         ))
         .with_children(|parent| {
-            parent.spawn((
-                LevelEntity,
-                Text::new("THE DARK WIZARD"),
-                TextFont {
-                    font: fonts.pixel_bold.clone(),
-                    font_size: 13.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.95, 0.28, 0.28)),
-            ));
             parent
                 .spawn((
                     LevelEntity,
                     Node {
-                        width: Val::Px(320.0),
-                        height: Val::Px(14.0),
-                        border: UiRect::all(Val::Px(1.0)),
-                        border_radius: BorderRadius::all(Val::Px(3.0)),
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        row_gap: Val::Px(6.0),
+                        padding: UiRect::axes(Val::Px(18.0), Val::Px(10.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        border_radius: BorderRadius::all(Val::Px(8.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.92)),
-                    BorderColor::all(Color::srgba(0.7, 0.1, 0.1, 0.8)),
+                    BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.92)),
+                    BorderColor::all(Color::srgb(0.93, 0.92, 0.88)),
                 ))
-                .with_children(|bar| {
-                    bar.spawn((
+                .with_children(|panel| {
+                    panel.spawn((
                         LevelEntity,
-                        BossHpFill,
-                        Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
-                            border_radius: BorderRadius::all(Val::Px(3.0)),
+                        Text::new("THE DARK WIZARD"),
+                        TextFont {
+                            font: fonts.pixel_bold.clone(),
+                            font_size: 13.0,
                             ..default()
                         },
-                        BackgroundColor(Color::srgb(0.82, 0.07, 0.07)),
+                        TextColor(Color::srgb(0.98, 0.36, 0.32)),
                     ));
+                    panel
+                        .spawn((
+                            LevelEntity,
+                            Node {
+                                width: Val::Px(320.0),
+                                height: Val::Px(14.0),
+                                border: UiRect::all(Val::Px(1.0)),
+                                border_radius: BorderRadius::all(Val::Px(3.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.92)),
+                            BorderColor::all(Color::srgba(0.93, 0.92, 0.88, 0.6)),
+                        ))
+                        .with_children(|bar| {
+                            bar.spawn((
+                                LevelEntity,
+                                BossHpFill,
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    border_radius: BorderRadius::all(Val::Px(3.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgb(0.82, 0.07, 0.07)),
+                            ));
+                        });
                 });
         });
 }

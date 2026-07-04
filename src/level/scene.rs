@@ -4,16 +4,32 @@ use bevy::window::PrimaryWindow;
 
 use crate::fonts::GameFonts;
 use crate::level::{
-    LevelArtHandles, LevelBounds, LevelEntity, ROOM_CEILING_Y, ROOM_TILE_COLUMNS, ROOM_WALL_LEFT_X,
-    ROOM_WALL_RIGHT_X, ROOM_WALL_ROWS, TILE_SCALE, TILE_WORLD_SIZE,
+    FountainAnimation, FountainAnimationTimer, LevelArtHandles, LevelBounds, LevelEntity,
+    ROOM_CEILING_Y, ROOM_TILE_COLUMNS, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, ROOM_WALL_ROWS,
+    TILE_SCALE, TILE_WORLD_SIZE,
 };
 
 use crate::player::{GROUND_Y, Player};
 
+/// Warm gold for titles, soft white for hints — over-world text carries a
+/// drop shadow instead of a window so it never blocks the scene.
+pub(crate) const DQ_TEXT_GOLD: Color = Color::srgb(0.96, 0.87, 0.58);
+pub(crate) const DQ_TEXT_WHITE: Color = Color::srgb(0.96, 0.96, 0.98);
+
+const FOUNTAIN_FRAME_SECS: f32 = 0.22;
+
+/// Visual dressing per room: the castle halls are bright heraldry and water,
+/// the wizard's lair is red banners, lava fountains, and creeping goo.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RoomTheme {
+    Castle,
+    Lair,
+}
+
 const LEVEL_CAMERA_Y: f32 = 90.0;
 const LEVEL_CAMERA_SCALE: f32 = 1.2;
 const LEVEL_CAMERA_SMOOTHING: f32 = 8.0;
-const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 8.0;
+const LEVEL_LABEL_Y: f32 = ROOM_CEILING_Y + 104.0;
 const BACKGROUND_SIDE_PADDING: isize = 10;
 const BACKGROUND_ROWS_BELOW_GROUND: usize = 12;
 // Keep a little masonry above the room while leaving more of the sky visible.
@@ -83,6 +99,7 @@ pub(crate) fn spawn_room_shell(
     art: &LevelArtHandles,
     fonts: &GameFonts,
     level_label: &str,
+    theme: RoomTheme,
 ) {
     commands.spawn((
         LevelEntity,
@@ -108,28 +125,41 @@ pub(crate) fn spawn_room_shell(
         Transform::from_xyz(0.0, GROUND_Y + 120.0, -26.0),
     ));
 
-    // Sky — anchored at ROOM_CEILING_Y, z=-13 so background brick tiles (z=-12) render in
-    // front of it. The BACKGROUND_ROWS_ABOVE_CEILING brick rows overlap the sky naturally,
-    // eliminating any seam. Height 4000 covers from ceiling to well past screen top.
+    // Sky — z=-13 so background brick tiles (z=-12) render in front of it.
+    // The texture is a vertical gradient (bright horizon at the bottom, dark
+    // starfield at the top), so it must NOT tile vertically: repeating it puts
+    // the next tile's bright bottom edge above the dark stars, which reads as
+    // a glitchy blue band. One vertical copy, stretched tall, with its bright
+    // bottom edge tucked behind the wall top as the horizon.
+    // Native texture size (1400x560) so stars keep their pixel look. Sinking
+    // the bottom 140px behind the wall hides most of the bright horizon band
+    // and lifts the texture's sun into the strip visible above the wall.
+    let sky_height = 560.0;
+    // Top edge of the masonry band (same grid math as spawn_background_tiles).
+    let total_rows = ROOM_WALL_ROWS + BACKGROUND_ROWS_BELOW_GROUND + BACKGROUND_ROWS_ABOVE_CEILING;
+    let wall_band_top = GROUND_Y - TILE_WORLD_SIZE * (BACKGROUND_ROWS_BELOW_GROUND as f32 - 0.5)
+        + total_rows as f32 * TILE_WORLD_SIZE
+        - TILE_WORLD_SIZE * 0.5;
+    let sky_bottom = wall_band_top - 140.0;
     commands.spawn((
         LevelEntity,
         Sprite {
             image: art.sky.clone(),
-            custom_size: Some(Vec2::new(4000.0, 4000.0)),
+            custom_size: Some(Vec2::new(4000.0, sky_height)),
             image_mode: SpriteImageMode::Tiled {
                 tile_x: true,
-                tile_y: true,
+                tile_y: false,
                 stretch_value: 1.0,
             },
             ..default()
         },
-        Transform::from_xyz(0.0, ROOM_CEILING_Y + 1930.0, -13.0),
+        Transform::from_xyz(0.0, sky_bottom + sky_height * 0.5, -13.0),
     ));
 
     spawn_background_tiles(commands, art);
     spawn_floor_strip(commands, art);
     spawn_side_walls(commands, art);
-    spawn_decor(commands, art);
+    spawn_decor(commands, art, theme);
     spawn_underground_decor(commands, art);
     spawn_level_label(commands, fonts, level_label);
 }
@@ -227,13 +257,22 @@ fn spawn_side_walls(commands: &mut Commands, art: &LevelArtHandles) {
     }
 }
 
-fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
-    for (x, texture) in [
-        (-620.0, art.banner_green.clone()),
-        (-250.0, art.banner_blue.clone()),
-        (250.0, art.banner_red.clone()),
-        (620.0, art.banner_yellow.clone()),
-    ] {
+fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles, theme: RoomTheme) {
+    let banners: [(f32, Handle<Image>); 4] = match theme {
+        RoomTheme::Castle => [
+            (-620.0, art.banner_green.clone()),
+            (-250.0, art.banner_blue.clone()),
+            (250.0, art.banner_red.clone()),
+            (620.0, art.banner_yellow.clone()),
+        ],
+        RoomTheme::Lair => [
+            (-620.0, art.banner_red.clone()),
+            (-250.0, art.banner_red.clone()),
+            (250.0, art.banner_red.clone()),
+            (620.0, art.banner_red.clone()),
+        ],
+    };
+    for (x, texture) in banners {
         spawn_bottom_anchored_sprite(
             commands,
             texture,
@@ -243,7 +282,23 @@ fn spawn_decor(commands: &mut Commands, art: &LevelArtHandles) {
     }
 
     for x in [-470.0, 470.0] {
-        spawn_fountain(commands, art, x);
+        spawn_fountain(commands, art, x, theme);
+    }
+
+    // Creeping goo stains give the lair a corrupted look.
+    if theme == RoomTheme::Lair {
+        for x in [-390.0, 90.0, 560.0] {
+            spawn_centered_tile(
+                commands,
+                art.wall_goo.clone(),
+                Vec3::new(x, GROUND_Y + TILE_WORLD_SIZE * 1.5, -8.0),
+            );
+            spawn_centered_tile(
+                commands,
+                art.wall_goo_base.clone(),
+                Vec3::new(x, GROUND_Y + TILE_WORLD_SIZE * 0.5, -8.0),
+            );
+        }
     }
 
     for x in [-636.0, -360.0, 360.0, 636.0] {
@@ -310,42 +365,84 @@ fn spawn_underground_decor(commands: &mut Commands, art: &LevelArtHandles) {
 }
 
 fn spawn_level_label(commands: &mut Commands, fonts: &GameFonts, level_label: &str) {
-    commands.spawn((
-        LevelEntity,
-        Sprite::from_color(Color::srgba(0.02, 0.03, 0.05, 0.84), Vec2::new(210.0, 50.0)),
-        Transform::from_xyz(0.0, LEVEL_LABEL_Y, 3.0),
-    ));
-
-    commands.spawn((
-        LevelEntity,
-        Text2d::new(level_label.to_string()),
-        TextFont {
-            font: fonts.pixel_bold.clone(),
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.9, 0.92, 0.97)),
-        Transform::from_xyz(0.0, LEVEL_LABEL_Y, 4.0),
-    ));
+    spawn_world_text(
+        commands,
+        fonts.pixel_bold.clone(),
+        level_label,
+        23.0,
+        DQ_TEXT_GOLD,
+        Vec3::new(0.0, LEVEL_LABEL_Y, 3.0),
+    );
 }
 
-fn spawn_fountain(commands: &mut Commands, art: &LevelArtHandles, x: f32) {
-    spawn_centered_tile(
+fn spawn_fountain(commands: &mut Commands, art: &LevelArtHandles, x: f32, theme: RoomTheme) {
+    let (mid_frames, basin_frames) = match theme {
+        RoomTheme::Castle => (
+            art.fountain_mid_blue_frames.clone(),
+            art.fountain_blue_frames.clone(),
+        ),
+        RoomTheme::Lair => (
+            art.fountain_mid_red_frames.clone(),
+            art.fountain_red_frames.clone(),
+        ),
+    };
+
+    spawn_animated_tile(
         commands,
-        art.fountain_top_frames[0].clone(),
+        art.fountain_top_frames.clone(),
         Vec3::new(x, GROUND_Y + 240.0, 0.5),
     );
-    spawn_centered_tile(
-        commands,
-        art.fountain_mid_blue_frames[0].clone(),
-        Vec3::new(x, GROUND_Y + 176.0, 0.5),
-    );
-    spawn_centered_tile(
-        commands,
-        art.fountain_blue_frames[0].clone(),
-        Vec3::new(x, GROUND_Y + 112.0, 0.6),
-    );
+    spawn_animated_tile(commands, mid_frames, Vec3::new(x, GROUND_Y + 176.0, 0.5));
+    spawn_animated_tile(commands, basin_frames, Vec3::new(x, GROUND_Y + 112.0, 0.6));
 }
+
+fn spawn_animated_tile(commands: &mut Commands, frames: [Handle<Image>; 3], position: Vec3) {
+    commands.spawn((
+        LevelEntity,
+        Sprite::from_image(frames[0].clone()),
+        Transform::from_translation(position).with_scale(Vec3::splat(TILE_SCALE)),
+        FountainAnimation { frames, index: 0 },
+        FountainAnimationTimer(Timer::from_seconds(FOUNTAIN_FRAME_SECS, TimerMode::Repeating)),
+    ));
+}
+
+/// Spawns bare world-space text with a dark drop shadow for readability over
+/// the brickwork — no window, so it stays out of the scene's way. The shadow
+/// is a child of the text entity, so toggling `Visibility` hides both.
+pub(crate) fn spawn_world_text(
+    commands: &mut Commands,
+    font: Handle<Font>,
+    text: &str,
+    font_size: f32,
+    text_color: Color,
+    position: Vec3,
+) -> Entity {
+    let text_font = TextFont {
+        font,
+        font_size,
+        ..default()
+    };
+    commands
+        .spawn((
+            LevelEntity,
+            Text2d::new(text.to_string()),
+            text_font.clone(),
+            TextColor(text_color),
+            TextLayout::new_with_justify(Justify::Center),
+            Transform::from_translation(position),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text2d::new(text.to_string()),
+                text_font,
+                TextColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+                TextLayout::new_with_justify(Justify::Center),
+                Transform::from_xyz(2.0, -2.0, -0.01),
+            ));
+        })
+        .id()
+}
+
 
 pub(crate) fn spawn_centered_tile(commands: &mut Commands, texture: Handle<Image>, position: Vec3) {
     commands.spawn((
