@@ -41,9 +41,9 @@ pub(crate) const TILE_SCALE: f32 = 4.0;
 pub(crate) const WIZARD_SCALE: f32 = 4.0;
 pub(crate) const TILE_WORLD_SIZE: f32 = 64.0;
 pub(crate) const ROOM_TILE_COLUMNS: usize = 24;
-// 9 rows keeps the tall castle wall but ends the masonry one tile lower,
-// giving the night sky (stars + sun) a visible band above the wall.
-pub(crate) const ROOM_WALL_ROWS: usize = 9;
+// 10 rows gives the castle wall more presence while still leaving a band of
+// night sky (stars + sun) visible above the masonry.
+pub(crate) const ROOM_WALL_ROWS: usize = 10;
 pub(crate) const ROOM_WALL_LEFT_X: f32 = -768.0;
 pub(crate) const ROOM_WALL_RIGHT_X: f32 = 768.0;
 pub(crate) const ROOM_PLAYER_LEFT_X: f32 = -720.0;
