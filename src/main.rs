@@ -43,8 +43,10 @@ fn main() {
             // scale 1.2 is still wider than the room, so nothing is cropped.
             resolution: (1440, 810).into(),
             resizable: false,
+            // Must point at a real <canvas> element (not a div) — browsers
+            // differ on where winit's fallback canvas lands otherwise.
             #[cfg(target_arch = "wasm32")]
-            canvas: Some("#bevy-container".to_string()),
+            canvas: Some("#bevy-canvas".to_string()),
             #[cfg(target_arch = "wasm32")]
             fit_canvas_to_parent: true,
             ..default()

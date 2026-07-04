@@ -140,7 +140,10 @@ pub(crate) fn spawn_room_shell(
     let wall_band_top = GROUND_Y - TILE_WORLD_SIZE * (BACKGROUND_ROWS_BELOW_GROUND as f32 - 0.5)
         + total_rows as f32 * TILE_WORLD_SIZE
         - TILE_WORLD_SIZE * 0.5;
-    let sky_bottom = wall_band_top - 140.0;
+    // 200px of the texture's bright horizon hides behind the wall, which
+    // parks the texture's sun ~60px above the wall top — inside the visible
+    // sky band at both native and browser canvas heights.
+    let sky_bottom = wall_band_top - 200.0;
     commands.spawn((
         LevelEntity,
         Sprite {
