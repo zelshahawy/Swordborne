@@ -128,6 +128,13 @@
         display: block;
       }
 
+      #bevy-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #09080d;
+      }
+
       @media (max-width: 900px), (max-height: 700px) {
         /* visibility (not display:none) keeps the canvas laid out, so Bevy
            keeps receiving real resize events and recovers when re-shown */
@@ -146,7 +153,7 @@
     </style>
   </head>
   <body>
-    <div id="bevy-container"></div>
+    <div id="bevy-container"><canvas id="bevy-canvas"></canvas></div>
     <button id="fullscreen-button" type="button">
       <svg
         class="icon"
