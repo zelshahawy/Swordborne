@@ -7,7 +7,8 @@ use crate::boss::{
 };
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableChest, BreakableCrate, CrateReward, LEVEL_FIVE_BOSS_START_X,
+    BreakableChest, BreakableCrate, CrateReward, DQ_TEXT_GOLD, DQ_TEXT_WHITE,
+    LEVEL_FIVE_BOSS_START_X,
     LEVEL_FIVE_PLAYER_START_X, LEVEL_FOUR_BLUE_A_X, LEVEL_FOUR_BLUE_B_X, LEVEL_FOUR_DOOR_X,
     LEVEL_FOUR_GREEN_X, LEVEL_FOUR_PLAYER_START_X, LEVEL_FOUR_RED_A_X, LEVEL_FOUR_RED_B_X,
     LEVEL_ONE_CRATE_X, LEVEL_ONE_DOOR_X, LEVEL_ONE_PLAYER_START_X, LEVEL_ONE_SWORD_X,
@@ -16,10 +17,10 @@ use crate::level::{
     LEVEL_TWO_DOOR_X, LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, LEVEL_TWO_PLAYER_START_X,
     LEVEL_TWO_SHELF_TOP_Y, LevelArtHandles, LevelBounds, LevelEntity, LevelFourCompletionText,
     LevelThreeCompletionText, LevelTwoCompletionText, ROOM_CEILING_Y, ROOM_PLAYER_LEFT_X,
-    ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, SwordBlocker, TILE_SCALE,
+    ROOM_PLAYER_RIGHT_X, ROOM_WALL_LEFT_X, ROOM_WALL_RIGHT_X, RoomTheme, SwordBlocker, TILE_SCALE,
     TILE_WORLD_SIZE, TrainingDoor, WIZARD_SCALE, WizardAnimationFrame, WizardAnimationTimer,
     WizardNpc, frame_level_camera, spawn_bottom_anchored_sprite, spawn_centered_tile,
-    spawn_room_shell,
+    spawn_room_shell, spawn_world_text,
 };
 
 use crate::player::{GROUND_Y, PlayerAnimationHandles, spawn::spawn_player_entity};
@@ -122,7 +123,7 @@ fn spawn_level_one(
 ) {
     commands.insert_resource(level_bounds_for(LevelId::LevelOne));
 
-    spawn_room_shell(commands, art, fonts, "LEVEL 1");
+    spawn_room_shell(commands, art, fonts, "LEVEL 1", RoomTheme::Castle);
 
     let player = spawn_player_entity(
         commands,
@@ -140,18 +141,14 @@ fn spawn_level_one(
     );
     commands.entity(sword).insert(LevelEntity);
 
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("[ E ] Pick up"),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.80, 0.88, 0.98)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(LEVEL_ONE_SWORD_X, GROUND_Y + 96.0, 5.0),
-    ));
+    spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        "[ E ] Pick up",
+        18.0,
+        DQ_TEXT_WHITE,
+        Vec3::new(LEVEL_ONE_SWORD_X, GROUND_Y + 96.0, 5.0),
+    );
 
     spawn_wizard(commands, art, Vec3::new(LEVEL_ONE_WIZARD_X, GROUND_Y, 4.0));
 
@@ -187,18 +184,14 @@ fn spawn_level_one(
         Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y, 4.0),
         CrateReward::OpenTrainingDoor,
     );
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("Left Click to slash the crate."),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 12.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.91, 0.94, 0.98)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(LEVEL_ONE_CRATE_X, GROUND_Y + 112.0, 4.0),
-    ));
+    spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        "Left Click to slash the crate.",
+        16.0,
+        DQ_TEXT_WHITE,
+        Vec3::new(LEVEL_ONE_CRATE_X, GROUND_Y + 112.0, 4.0),
+    );
     spawn_training_door(
         commands,
         art,
@@ -217,7 +210,7 @@ fn spawn_level_two(
 ) {
     commands.insert_resource(level_bounds_for(LevelId::LevelTwo));
 
-    spawn_room_shell(commands, art, fonts, "LEVEL 2");
+    spawn_room_shell(commands, art, fonts, "LEVEL 2", RoomTheme::Castle);
 
     let player = spawn_player_entity(
         commands,
@@ -259,18 +252,14 @@ fn spawn_level_two(
         CrateReward::CompleteLevelTwo,
     );
 
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("Hold Right Click to aim the sword.\nRelease to shatter the crate above."),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 12.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.91, 0.94, 0.98)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, 4.0),
-    ));
+    spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        "Hold Right Click to aim the sword.\nRelease to shatter the crate above.",
+        16.0,
+        DQ_TEXT_WHITE,
+        Vec3::new(LEVEL_TWO_HINT_X, LEVEL_TWO_HINT_Y, 4.0),
+    );
 
     let knight_name = if profile.name.is_empty() {
         "Knight"
@@ -278,22 +267,17 @@ fn spawn_level_two(
         profile.name.as_str()
     };
 
-    commands.spawn((
-        LevelEntity,
-        LevelTwoCompletionText,
-        Visibility::Hidden,
-        Text2d::new(format!(
-            "{knight_name}, the offer letter is yours.\nLevel 3 is deeper in the dungeon."
-        )),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.98, 0.92, 0.72)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, ROOM_CEILING_Y - 30.0, 8.0),
-    ));
+    let completion = spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        &format!("{knight_name}, the offer letter is yours.\nLevel 3 is deeper in the dungeon."),
+        19.0,
+        DQ_TEXT_GOLD,
+        Vec3::new(0.0, ROOM_CEILING_Y - 40.0, 8.0),
+    );
+    commands
+        .entity(completion)
+        .insert((LevelTwoCompletionText, Visibility::Hidden));
 }
 
 fn spawn_level_two_target_shelf(commands: &mut Commands, art: &LevelArtHandles) {
@@ -368,6 +352,8 @@ fn spawn_wizard(commands: &mut Commands, art: &LevelArtHandles, position: Vec3) 
 }
 
 fn spawn_training_door(commands: &mut Commands, art: &LevelArtHandles, position: Vec3, open: bool) {
+    // The leaf tile carries its own stone arch; the tileset's separate frame
+    // pieces assume matching light bricks and look broken on our dark walls.
     commands.spawn((
         LevelEntity,
         TrainingDoor { open },
@@ -381,6 +367,122 @@ fn spawn_training_door(commands: &mut Commands, art: &LevelArtHandles, position:
     ));
 }
 
+/// Spawns a puzzle block as a gem medallion: a rotated diamond gem set in a
+/// gold-trimmed stone frame. The `PuzzleBlock` entity is the gem sprite itself,
+/// so the existing hit/recolor logic keeps working untouched.
+fn spawn_puzzle_gem(
+    commands: &mut Commands,
+    fonts: &GameFonts,
+    color: BlockColor,
+    position: Vec3,
+) {
+    let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_4);
+
+    commands
+        .spawn((
+            LevelEntity,
+            PuzzleBlock {
+                color,
+                activated: false,
+                hit_cooldown: 0.0,
+            },
+            Sprite::from_color(color.dim_color(), Vec2::splat(34.0)),
+            Transform::from_translation(position).with_rotation(rotation),
+        ))
+        .with_children(|gem| {
+            gem.spawn((
+                Sprite::from_color(Color::srgb(0.07, 0.06, 0.10), Vec2::splat(54.0)),
+                Transform::from_xyz(0.0, 0.0, -0.03),
+            ));
+            gem.spawn((
+                Sprite::from_color(Color::srgb(0.62, 0.52, 0.30), Vec2::splat(46.0)),
+                Transform::from_xyz(0.0, 0.0, -0.02),
+            ));
+            gem.spawn((
+                Sprite::from_color(Color::srgb(0.05, 0.04, 0.08), Vec2::splat(40.0)),
+                Transform::from_xyz(0.0, 0.0, -0.01),
+            ));
+            // specular glint on the upper facet
+            gem.spawn((
+                Sprite::from_color(Color::srgba(1.0, 1.0, 1.0, 0.32), Vec2::splat(7.0)),
+                Transform::from_xyz(-7.0, 7.0, 0.01),
+            ));
+        });
+
+    commands.spawn((
+        LevelEntity,
+        Text2d::new(color.label()),
+        TextFont {
+            font: fonts.pixel_bold.clone(),
+            font_size: 15.0,
+            ..default()
+        },
+        TextColor(color.bright_color()),
+        Transform::from_xyz(position.x, position.y - 54.0, position.z),
+    ));
+}
+
+/// Sequence display: the ordered gems as mini medallions (same gold-trimmed
+/// diamond style as the real puzzle gems), floating bare over the wall with
+/// the instruction line below — no window, per the game's clean-text look.
+fn spawn_sequence_display(
+    commands: &mut Commands,
+    fonts: &GameFonts,
+    sequence: &[BlockColor],
+    center_x: f32,
+    instruction: &str,
+) {
+    let y = ROOM_CEILING_Y + 6.0;
+    let spacing = 78.0;
+
+    let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_4);
+    let start_x = center_x - (sequence.len() as f32 - 1.0) * spacing * 0.5;
+    for (i, color) in sequence.iter().enumerate() {
+        let x = start_x + i as f32 * spacing;
+        commands
+            .spawn((
+                LevelEntity,
+                Sprite::from_color(color.bright_color(), Vec2::splat(30.0)),
+                Transform::from_xyz(x, y + 30.0, 5.0).with_rotation(rotation),
+            ))
+            .with_children(|gem| {
+                gem.spawn((
+                    Sprite::from_color(Color::srgb(0.07, 0.06, 0.10), Vec2::splat(48.0)),
+                    Transform::from_xyz(0.0, 0.0, -0.03),
+                ));
+                gem.spawn((
+                    Sprite::from_color(Color::srgb(0.62, 0.52, 0.30), Vec2::splat(41.0)),
+                    Transform::from_xyz(0.0, 0.0, -0.02),
+                ));
+                gem.spawn((
+                    Sprite::from_color(Color::srgb(0.05, 0.04, 0.08), Vec2::splat(35.0)),
+                    Transform::from_xyz(0.0, 0.0, -0.01),
+                ));
+                gem.spawn((
+                    Sprite::from_color(Color::srgba(1.0, 1.0, 1.0, 0.32), Vec2::splat(6.0)),
+                    Transform::from_xyz(-6.0, 6.0, 0.01),
+                ));
+            });
+        spawn_world_text(
+            commands,
+            fonts.pixel_bold.clone(),
+            &format!("{}", i + 1),
+            15.0,
+            DQ_TEXT_GOLD,
+            Vec3::new(x, y - 16.0, 5.0),
+        );
+    }
+
+    spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        instruction,
+        15.0,
+        DQ_TEXT_WHITE,
+        Vec3::new(center_x, y - 46.0, 5.0),
+    );
+}
+
 fn spawn_level_three(
     commands: &mut Commands,
     art: &LevelArtHandles,
@@ -392,7 +494,7 @@ fn spawn_level_three(
 ) {
     commands.insert_resource(level_bounds_for(LevelId::LevelThree));
 
-    spawn_room_shell(commands, art, fonts, "LEVEL 3");
+    spawn_room_shell(commands, art, fonts, "LEVEL 3", RoomTheme::Castle);
 
     let player = spawn_player_entity(
         commands,
@@ -416,64 +518,16 @@ fn spawn_level_three(
         (LEVEL_THREE_BLUE_X, BlockColor::Blue),
     ];
     for (x, color) in blocks {
-        commands.spawn((
-            LevelEntity,
-            PuzzleBlock {
-                color,
-                activated: false,
-                hit_cooldown: 0.0,
-            },
-            Sprite::from_color(color.dim_color(), Vec2::new(48.0, 48.0)),
-            Transform::from_xyz(x, GROUND_Y + 48.0, 4.0),
-        ));
-        commands.spawn((
-            LevelEntity,
-            Text2d::new(color.label()),
-            TextFont {
-                font: fonts.pixel_bold.clone(),
-                font_size: 12.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.85, 0.85, 0.85)),
-            Transform::from_xyz(x, GROUND_Y + 8.0, 4.0),
-        ));
+        spawn_puzzle_gem(commands, fonts, color, Vec3::new(x, GROUND_Y + 52.0, 4.0));
     }
 
-    let seq_y = ROOM_CEILING_Y - 28.0;
-    let seq_start_x = -80.0;
-    let seq_spacing = 56.0;
-    for (i, color) in campaign.puzzle_sequence.iter().enumerate() {
-        let x = seq_start_x + i as f32 * seq_spacing;
-        commands.spawn((
-            LevelEntity,
-            Sprite::from_color(color.bright_color(), Vec2::new(32.0, 32.0)),
-            Transform::from_xyz(x, seq_y, 5.0),
-        ));
-        commands.spawn((
-            LevelEntity,
-            Text2d::new(format!("{}.", i + 1)),
-            TextFont {
-                font: fonts.pixel_bold.clone(),
-                font_size: 11.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.85, 0.85, 0.85)),
-            Transform::from_xyz(x, seq_y - 24.0, 5.0),
-        ));
-    }
-
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("Strike the blocks in the order shown above."),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 11.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.75, 0.75, 0.75)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(seq_start_x + seq_spacing, seq_y - 44.0, 5.0),
-    ));
+    spawn_sequence_display(
+        commands,
+        fonts,
+        &campaign.puzzle_sequence,
+        0.0,
+        "Strike the gems in the order shown.",
+    );
 
     spawn_training_door(
         commands,
@@ -487,22 +541,17 @@ fn spawn_level_three(
     } else {
         profile.name.as_str()
     };
-    commands.spawn((
-        LevelEntity,
-        LevelThreeCompletionText,
-        Visibility::Hidden,
-        Text2d::new(format!(
-            "{knight_name}, you have mastered the sequence.\nThe dungeon is yours."
-        )),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.98, 0.92, 0.72)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, GROUND_Y + 150.0, 8.0),
-    ));
+    let completion = spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        &format!("{knight_name}, you have mastered the sequence.\nThe dungeon is yours."),
+        19.0,
+        DQ_TEXT_GOLD,
+        Vec3::new(0.0, GROUND_Y + 150.0, 8.0),
+    );
+    commands
+        .entity(completion)
+        .insert((LevelThreeCompletionText, Visibility::Hidden));
 }
 
 fn spawn_level_four(
@@ -516,7 +565,7 @@ fn spawn_level_four(
 ) {
     commands.insert_resource(level_bounds_for(LevelId::LevelFour));
 
-    spawn_room_shell(commands, art, fonts, "LEVEL 4");
+    spawn_room_shell(commands, art, fonts, "LEVEL 4", RoomTheme::Castle);
 
     let player = spawn_player_entity(
         commands,
@@ -549,65 +598,16 @@ fn spawn_level_four(
             Vec3::new(x, GROUND_Y, 2.0),
             TILE_SCALE,
         );
-        commands.spawn((
-            LevelEntity,
-            PuzzleBlock {
-                color,
-                activated: false,
-                hit_cooldown: 0.0,
-            },
-            Sprite::from_color(color.dim_color(), Vec2::new(48.0, 48.0)),
-            Transform::from_xyz(x, GROUND_Y + 210.0, 4.0),
-        ));
-        commands.spawn((
-            LevelEntity,
-            Text2d::new(color.label()),
-            TextFont {
-                font: fonts.pixel_bold.clone(),
-                font_size: 12.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.85, 0.85, 0.85)),
-            Transform::from_xyz(x, GROUND_Y + 170.0, 4.0),
-        ));
+        spawn_puzzle_gem(commands, fonts, color, Vec3::new(x, GROUND_Y + 192.0, 4.0));
     }
 
-    // Sequence indicator — 5 colored squares across the top of the room.
-    let seq_y = ROOM_CEILING_Y - 28.0;
-    let seq_spacing = 56.0;
-    let seq_start_x = -(campaign.puzzle_sequence.len() as f32 - 1.0) * seq_spacing * 0.5;
-    for (i, color) in campaign.puzzle_sequence.iter().enumerate() {
-        let x = seq_start_x + i as f32 * seq_spacing;
-        commands.spawn((
-            LevelEntity,
-            Sprite::from_color(color.bright_color(), Vec2::new(32.0, 32.0)),
-            Transform::from_xyz(x, seq_y, 5.0),
-        ));
-        commands.spawn((
-            LevelEntity,
-            Text2d::new(format!("{}.", i + 1)),
-            TextFont {
-                font: fonts.pixel_bold.clone(),
-                font_size: 11.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.85, 0.85, 0.85)),
-            Transform::from_xyz(x, seq_y - 24.0, 5.0),
-        ));
-    }
-
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("Aim upward to throw the sword at elevated blocks."),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 11.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.75, 0.75, 0.75)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, seq_y - 44.0, 5.0),
-    ));
+    spawn_sequence_display(
+        commands,
+        fonts,
+        &campaign.puzzle_sequence,
+        0.0,
+        "Throw the sword to strike the gems in order.",
+    );
 
     spawn_training_door(
         commands,
@@ -621,22 +621,17 @@ fn spawn_level_four(
     } else {
         profile.name.as_str()
     };
-    commands.spawn((
-        LevelEntity,
-        LevelFourCompletionText,
-        Visibility::Hidden,
-        Text2d::new(format!(
-            "{knight_name}, The Vault has fallen.\nYou are a true master of the sword."
-        )),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 14.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.98, 0.92, 0.72)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, GROUND_Y + 150.0, 8.0),
-    ));
+    let completion = spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        &format!("{knight_name}, The Vault has fallen.\nYou are a true master of the sword."),
+        19.0,
+        DQ_TEXT_GOLD,
+        Vec3::new(0.0, GROUND_Y + 150.0, 8.0),
+    );
+    commands
+        .entity(completion)
+        .insert((LevelFourCompletionText, Visibility::Hidden));
 }
 
 fn spawn_sword_blocker(commands: &mut Commands, center: Vec2, half_extents: Vec2) {
@@ -690,7 +685,7 @@ fn spawn_level_five(
 
     commands.insert_resource(level_bounds_for(LevelId::LevelFive));
 
-    spawn_room_shell(commands, art, fonts, "THE WIZARD'S LAIR");
+    spawn_room_shell(commands, art, fonts, "THE WIZARD'S LAIR", RoomTheme::Lair);
 
     // Blood-red atmosphere overlay
     commands.spawn((
@@ -746,18 +741,10 @@ fn spawn_level_five(
     ));
 
     spawn_boss_hp_bar(commands, fonts);
-    spawn_player_hp_ui(commands, fonts);
+    spawn_player_hp_ui(commands, fonts, art);
 
-    // Menacing dressing – red banners along ceiling, dense skull placement, extra columns
-    for x in [-600.0, -320.0, 0.0, 320.0, 600.0] {
-        spawn_bottom_anchored_sprite(
-            commands,
-            art.banner_red.clone(),
-            Vec3::new(x, ROOM_CEILING_Y + 114.0, 1.5),
-            TILE_SCALE,
-        );
-    }
-
+    // Menacing dressing – dense skull placement and extra columns.
+    // (The Lair room theme already hangs red banners and lava fountains.)
     for x in [-680.0, -540.0, -380.0, -180.0, 80.0, 300.0, 500.0, 680.0] {
         spawn_bottom_anchored_sprite(
             commands,
@@ -791,38 +778,29 @@ fn spawn_level_five(
         );
     }
 
-    commands.spawn((
-        LevelEntity,
-        Text2d::new("Only the thrown blade can pierce his dark magic."),
-        TextFont {
-            font: fonts.pixel_bold.clone(),
-            font_size: 15.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.92, 0.55, 0.55)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, GROUND_Y + 220.0, 5.0),
-    ));
+    spawn_world_text(
+        commands,
+        fonts.pixel_bold.clone(),
+        "Only the thrown blade can pierce his dark magic.",
+        18.0,
+        Color::srgb(0.96, 0.55, 0.50),
+        Vec3::new(0.0, ROOM_CEILING_Y + 2.0, 5.0),
+    );
 
     let knight_name = if profile.name.is_empty() {
         "Knight"
     } else {
         profile.name.as_str()
     };
-    commands.spawn((
-        LevelEntity,
-        BossDefeatedText,
-        Visibility::Hidden,
-        Text2d::new(format!(
-            "The Dark Wizard falls.\n{knight_name}, your internship is confirmed."
-        )),
-        TextFont {
-            font: fonts.pixel_regular.clone(),
-            font_size: 16.0,
-            ..default()
-        },
-        TextColor(Color::srgb(1.0, 0.85, 0.3)),
-        TextLayout::new_with_justify(Justify::Center),
-        Transform::from_xyz(0.0, GROUND_Y + 160.0, 8.0),
-    ));
+    let defeated_text = spawn_world_text(
+        commands,
+        fonts.pixel_regular.clone(),
+        &format!("The Dark Wizard falls.\n{knight_name}, your internship is confirmed."),
+        20.0,
+        Color::srgb(1.0, 0.85, 0.3),
+        Vec3::new(0.0, GROUND_Y + 160.0, 8.0),
+    );
+    commands
+        .entity(defeated_text)
+        .insert((BossDefeatedText, Visibility::Hidden));
 }

@@ -4,8 +4,8 @@ use bevy::window::PrimaryWindow;
 use crate::dialogue::{DialogueCinematicState, DialoguePortraits, DialogueState, queue_dialogue};
 use crate::fonts::GameFonts;
 use crate::level::{
-    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, LevelArtHandles, LevelBounds,
-    LevelEntity,
+    BreakableChest, BreakableCrate, CrateBreakShard, CrateReward, FountainAnimation,
+    FountainAnimationTimer, LevelArtHandles, LevelBounds, LevelEntity,
     LevelFourCompletionText, LevelThreeCompletionText, LevelTwoCompletionText,
     PendingLevelTransition, TrainingDoor, WizardAnimationFrame, WizardAnimationTimer, WizardNpc,
     frame_level_camera, level_bounds_for, level_camera_focus_x, spawn_level_scene,
@@ -38,6 +38,25 @@ pub(crate) fn animate_wizard_idle(
         if timer.0.just_finished() {
             frame.0 = (frame.0 + 1) % art.wizard_idle_frames.len();
             sprite.image = art.wizard_idle_frames[frame.0].clone();
+            sprite.texture_atlas = None;
+        }
+    }
+}
+
+pub(crate) fn animate_fountains(
+    time: Res<Time>,
+    mut query: Query<(
+        &mut Sprite,
+        &mut FountainAnimation,
+        &mut FountainAnimationTimer,
+    )>,
+) {
+    for (mut sprite, mut anim, mut timer) in &mut query {
+        timer.0.tick(time.delta());
+
+        if timer.0.just_finished() {
+            anim.index = (anim.index + 1) % anim.frames.len();
+            sprite.image = anim.frames[anim.index].clone();
             sprite.texture_atlas = None;
         }
     }

@@ -38,7 +38,10 @@ fn main() {
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             title: "SwordBorne".into(),
-            resolution: (1600, 900).into(),
+            // 1440x810 fits on 13"/14" MacBook screens (1600 was wider than the
+            // display, pushing the top-right HUD off-screen). The camera view at
+            // scale 1.2 is still wider than the room, so nothing is cropped.
+            resolution: (1440, 810).into(),
             resizable: false,
             #[cfg(target_arch = "wasm32")]
             canvas: Some("#bevy-container".to_string()),
