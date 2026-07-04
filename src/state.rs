@@ -45,8 +45,8 @@ impl BlockColor {
     pub fn label(self) -> &'static str {
         match self {
             BlockColor::Red => "RED",
-            BlockColor::Green => "GRN",
-            BlockColor::Blue => "BLU",
+            BlockColor::Green => "GREEN",
+            BlockColor::Blue => "BLUE",
         }
     }
 }
